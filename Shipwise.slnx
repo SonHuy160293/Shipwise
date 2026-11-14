@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BuildingBlocks/Shipwise.AspNetCore/Shipwise.AspNetCore.csproj" />
+    <Project Path="src/BuildingBlocks/Shipwise.EntityFrameworkCore/Shipwise.EntityFrameworkCore.csproj" />
+    <Project Path="src/BuildingBlocks/Shipwise.Messaging/Shipwise.Messaging.csproj" />
+    <Project Path="src/BuildingBlocks/Shipwise.Observability/Shipwise.Observability.csproj" />
+    <Project Path="src/BuildingBlocks/Shipwise.SharedKernel/Shipwise.SharedKernel.csproj" />
+    <Project Path="src/BuildingBlocks/Shipwise.Utilities/Shipwise.Utilities.csproj" />
+    <Project Path="src/Gateway/Shipwise.Gateway/Shipwise.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Shipwise.AspNetCore.HttpClient.Tests/Shipwise.AspNetCore.HttpClient.Tests.csproj" />
+    <Project Path="tests/Shipwise.Foundation.Tests/Shipwise.Foundation.Tests.csproj" />
+    <Project Path="tests/Shipwise.Gateway.Tests/Shipwise.Gateway.Tests.csproj" />
+  </Folder>
+</Solution>

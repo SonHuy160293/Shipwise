@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/BuildingBlocks/Shipwise.Messaging/Shipwise.Messaging.csproj" />
+    <ProjectReference Include="../../src/BuildingBlocks/Shipwise.AspNetCore/Shipwise.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/BuildingBlocks/Shipwise.Observability/Shipwise.Observability.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

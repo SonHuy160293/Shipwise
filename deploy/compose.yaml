@@ -1,0 +1,78 @@
+name: shipwise
+services:
+  gateway:
+    profiles: [gateway]
+    build: {context: .., dockerfile: Dockerfile}
+    image: shipwise-gateway:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Observability__Enabled: ${SHIPWISE_OBSERVABILITY_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    ports: ["127.0.0.1:19090:8080"]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8080/health/live]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  postgres:
+    profiles: [infrastructure]
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_DB: shipwise_tests
+      POSTGRES_USER: shipwise_tests
+      POSTGRES_PASSWORD: ${SHIPWISE_TEST_POSTGRES_PASSWORD:-local-tests-only}
+    ports: ["127.0.0.1:25431:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql"]
+  rabbitmq:
+    profiles: [infrastructure]
+    image: rabbitmq:4.3.6-management
+    environment:
+      RABBITMQ_DEFAULT_USER: shipwise_tests
+      RABBITMQ_DEFAULT_PASS: ${SHIPWISE_TEST_RABBITMQ_PASSWORD:-local-tests-only}
+    ports: ["127.0.0.1:25672:5672", "127.0.0.1:25673:15672"]
+    volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
+  otel-collector:
+    profiles: [telemetry]
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./observability/collector.yaml:/etc/otelcol/config.yaml:ro"]
+    ports: ["127.0.0.1:24317:4317"]
+  loki:
+    profiles: [telemetry]
+    image: grafana/loki:3.4.2
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes: ["./observability/loki.yaml:/etc/loki/config.yaml:ro", "loki-data:/loki"]
+  tempo:
+    profiles: [telemetry]
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes: ["./observability/tempo.yaml:/etc/tempo/config.yaml:ro", "tempo-data:/var/tempo"]
+  prometheus:
+    profiles: [telemetry]
+    image: prom/prometheus:v3.2.1
+    command: ["--config.file=/etc/prometheus/prometheus.yaml", "--storage.tsdb.path=/prometheus"]
+    volumes: ["./observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro", "prometheus-data:/prometheus"]
+  grafana:
+    profiles: [telemetry]
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_ADMIN_PASSWORD: ${SHIPWISE_GRAFANA_PASSWORD:-local-observability-only}
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    ports: ["127.0.0.1:23000:3000"]
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+volumes:
+  postgres-data: {}
+  rabbitmq-data: {}
+  loki-data: {}
+  tempo-data: {}
+  prometheus-data: {}
+  grafana-data: {}

@@ -1,0 +1,146 @@
+{
+  "ReverseProxy": {
+    "Routes": {
+      "hooks-resend": {
+        "ClusterId": "hooks",
+        "Match": {
+          "Path": "/hooks/api/v1/webhooks/email/resend",
+          "Methods": [
+            "POST"
+          ]
+        },
+        "Timeout": "00:00:15",
+        "MaxRequestBodySize": 65536,
+        "Transforms": [
+          {
+            "PathRemovePrefix": "/hooks"
+          },
+          {
+            "X-Forwarded": "Set",
+            "Prefix": "Remove"
+          },
+          {
+            "RequestHeaderRemove": "Forwarded"
+          }
+        ]
+      },
+      "sample-register": {
+        "ClusterId": "sample",
+        "Match": {
+          "Path": "/sample/api/v1/auth/register",
+          "Methods": [
+            "POST"
+          ]
+        },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Transforms": [
+          {
+            "PathRemovePrefix": "/sample"
+          },
+          {
+            "X-Forwarded": "Set",
+            "Prefix": "Remove"
+          },
+          {
+            "RequestHeaderRemove": "Forwarded"
+          }
+        ]
+      },
+      "sample-login": {
+        "ClusterId": "sample",
+        "Match": {
+          "Path": "/sample/api/v1/auth/login",
+          "Methods": [
+            "POST"
+          ]
+        },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Transforms": [
+          {
+            "PathRemovePrefix": "/sample"
+          },
+          {
+            "X-Forwarded": "Set",
+            "Prefix": "Remove"
+          },
+          {
+            "RequestHeaderRemove": "Forwarded"
+          }
+        ]
+      },
+      "sample-refresh": {
+        "ClusterId": "sample",
+        "Match": {
+          "Path": "/sample/api/v1/auth/refresh",
+          "Methods": [
+            "POST"
+          ]
+        },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 1024,
+        "Transforms": [
+          {
+            "PathRemovePrefix": "/sample"
+          },
+          {
+            "X-Forwarded": "Set",
+            "Prefix": "Remove"
+          },
+          {
+            "RequestHeaderRemove": "Forwarded"
+          }
+        ]
+      },
+      "sample-logout": {
+        "ClusterId": "sample",
+        "Match": {
+          "Path": "/sample/api/v1/auth/logout",
+          "Methods": [
+            "POST"
+          ]
+        },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 1024,
+        "Transforms": [
+          {
+            "PathRemovePrefix": "/sample"
+          },
+          {
+            "X-Forwarded": "Set",
+            "Prefix": "Remove"
+          },
+          {
+            "RequestHeaderRemove": "Forwarded"
+          }
+        ]
+      }
+    },
+    "Clusters": {
+      "sample": {
+        "HttpClient": {
+          "EnableMultipleHttp2Connections": true
+        },
+        "HttpRequest": {
+          "ActivityTimeout": "00:00:30"
+        },
+        "Destinations": {
+          "sample-api": {
+            "Address": "http://127.0.0.1:19091/"
+          }
+        }
+      },
+      "hooks": {
+        "HttpRequest": {
+          "ActivityTimeout": "00:00:30"
+        },
+        "Destinations": {
+          "hooks-api": {
+            "Address": "http://127.0.0.1:19092/"
+          }
+        }
+      }
+    }
+  }
+}
