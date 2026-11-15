@@ -8,6 +8,8 @@ platform code only; business modules and contracts are deliberately absent.
 - Keep custom CQRS pipeline order and transaction ownership; never add MediatR.
 - Auth must fail closed without an authoritative active-context validator.
 - Keep business catalogs, DbContexts, migrations and broker topology out of shared code.
+- Database changes (EF Core code-first, PostgreSQL) follow the ef-migrations skill in
+  .agents/skills/ef-migrations: naming, column types, commands, expand/contract and tests.
 - Preserve telemetry privacy and cancellation. Never log credentials or sensitive payloads.
 - Add focused tests for behavior changes. Run scripts/Verify-Platform.ps1 and report
   skipped infrastructure tests separately. Container validation requires a running engine.
@@ -38,7 +40,8 @@ verification commands; work only on paths your task owns.
 
 A change is done only when: scripts/Verify-Platform.ps1 passes (CI runs it with
 PostgreSQL and RabbitMQ, so infrastructure tests must pass there, not skip); behavior
-changes have focused tests; no new analyzer warnings are introduced; the OpenAPI
+changes have focused tests; no new analyzer warnings are introduced; migrations pass
+the ef-migrations checklist with their SQL script in the pull request; the OpenAPI
 document is regenerated and committed when the contract changed; a different agent
 than the author has reviewed the diff; and the handoff reports the actual commands
 run and their results, listing skipped tests separately.

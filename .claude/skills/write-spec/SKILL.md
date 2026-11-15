@@ -47,7 +47,11 @@ contracts/openapi/shipwise.v1.json; the frontend never invents fields beyond it.
 
 ## Data and backend design
 Module and layer placement (Domain, Application, Infrastructure, API), entities and
-invariants, commands vs queries, migration, events or outbox use, observability.
+invariants, commands vs queries, events or outbox use, observability.
+Database (follow the ef-migrations skill): tables with columns, types, nullability and
+max lengths; keys, unique indexes, check constraints and query indexes; organization
+ownership; delete behavior; migration name(s); destructive: yes/no (yes needs an
+expand/contract plan and human approval).
 
 ## UI and states
 Routes, screens and components; loading, empty, error, success and permission-denied
