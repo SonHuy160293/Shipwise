@@ -18,6 +18,22 @@ platform code only; business modules and contracts are deliberately absent.
   contract changes here before the frontend regenerates its types.
 - Hooks and agent settings are approved by a human; never add or change them yourself.
 
+## Roles and ownership
+
+Specs live in docs/specs (written with the write-spec skill) and decisions in docs/adr.
+Every task comes from a spec's task table, which names its owner, repository, paths and
+verification commands; work only on paths your task owns.
+
+- Claude Code (planner, BA, solution architect, tech lead): writes specs, ADRs and task
+  tables, and reviews every pull request. Does not write product code.
+- Codex (fullstack developer): everything in this repository, plus the Shipwise-Web data
+  layer (generated contract, feature API hooks and schemas). Start Codex here with
+  `codex --add-dir ../Shipwise-Web` when a task spans both repositories.
+- Gemini (frontend developer and designer): works in Shipwise-Web only; it reads specs
+  and the contract from this repository but never edits it.
+- Order within a feature: spec, then the backend + contract pull request, then the
+  frontend pull requests, each reviewed by Claude.
+
 ## Definition of done
 
 A change is done only when: scripts/Verify-Platform.ps1 passes (CI runs it with
