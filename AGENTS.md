@@ -1,14 +1,17 @@
 # Shipwise contributor guidance
 
-Read README.md and ARCHITECTURE.md before changes. This repository contains shared
-platform code only; business modules and contracts are deliberately absent.
+Read README.md and ARCHITECTURE.md before changes. This repository contains the shared
+platform (BuildingBlocks, Gateway) and the product modules under src/Modules. Identity
+exists as a base skeleton only: hosts, wiring and tests, with no business code yet.
 
 - Follow .editorconfig and centralized package versions; retain net10.0.
 - BuildingBlocks may reference only other BuildingBlocks, without cycles.
 - Keep custom CQRS pipeline order and transaction ownership; never add MediatR.
 - Commands, queries, handlers, validators, controllers, error-to-HTTP mapping and
-  repositories follow the cqrs-api skill in .agents/skills/cqrs-api. `ApiController` does
-  not require authentication by itself: put `[Authorize]` on every controller.
+  repositories follow the cqrs-api skill in .agents/skills/cqrs-api. `ApiController`
+  requires a valid token; every action also needs its own `[PermissionAuthorize]`.
+  Expected failures are thrown as the matching exception, never returned as a failed
+  `Result`.
 - Auth must fail closed without an authoritative active-context validator.
 - Keep business catalogs, DbContexts, migrations and broker topology out of shared code.
 - A new module, or a new host in a module, follows the module-skeleton skill in

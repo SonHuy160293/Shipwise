@@ -61,7 +61,7 @@ set of commits of one task, normally the unpushed commits on `main`.
 - A new module or host: every item of the module-skeleton checklist (section 8 of
   `.agents/skills/module-skeleton/SKILL.md`); nothing business-specific rides along.
 - Application and API code: every item of the cqrs-api checklist (section 10 of
-  `.agents/skills/cqrs-api/SKILL.md`), in particular `[Authorize]` on every controller,
+  `.agents/skills/cqrs-api/SKILL.md`), in particular a `[PermissionAuthorize]` on every action, failures thrown not returned,
   status codes per its section 4, and no save or commit in handlers.
 - Database changes: every item of the ef-migrations checklist (section 7 of
   `.agents/skills/ef-migrations/SKILL.md`). Read the idempotent SQL script from the

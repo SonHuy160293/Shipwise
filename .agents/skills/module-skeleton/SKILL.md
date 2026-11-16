@@ -12,11 +12,12 @@ authentication, database wiring, migration tooling, tests, CI) so the first feat
 adds business code.
 
 The layout follows the owner's reference structure (the DeliveryPilot Identity module),
-corrected to Shipwise rules. The templates in [templates.md](templates.md) were built and
-run as a throwaway module on the real BuildingBlocks: the solution compiled with zero
-warnings, eight host tests passed, and the `dotnet ef` commands worked. What that run did
-not cover is listed in section 9. After the first real module lands, update this skill and
-its templates from that module and treat the module as the reference.
+corrected to Shipwise rules. The Shipwise Identity module (`src/Modules/Shipwise.Identity`,
+`tests/Shipwise.Identity.Tests`) was created from these rules and is the reference:
+[templates.md](templates.md) is a snapshot of it with the module renamed. That skeleton
+built with no analyzer warning, passed `scripts/Verify-Platform.ps1 -RequireInfrastructure`
+with no skipped test, and its MigrationRunner and API were run as processes against
+PostgreSQL. What is still unproven is listed in section 9.
 
 ## 1. Before you start
 
@@ -28,8 +29,9 @@ its templates from that module and treat the module as the reference.
   `Microsoft.AspNetCore.Mvc.Testing` (host tests); if `Directory.Packages.props` lacks
   them, the spec must approve them.
 - `scripts/Test-Architecture.ps1` holds a list of module names it rejects outright
-  (`Identity`, `Notification`, `Projects`, left over from the extraction). Creating one of
-  those modules includes removing its name from that list, stated in the spec.
+  (`Notification` and `Projects`, left over from the extraction; `Identity` was removed
+  when that module was created). Creating one of those modules includes removing its name
+  from that list, stated in the spec.
 - Read the cqrs-api and ef-migrations skills first; this skill only adds what is specific
   to creating a module.
 
@@ -45,7 +47,8 @@ its templates from that module and treat the module as the reference.
 | Schema | `<module>`, lowercase, as `const string Schema` on the DbContext | `identity` |
 | DbContext | `<Module>DbContext`, `<Module>DbContextFactory`, `<Module>UnitOfWork` | `IdentityDbContext` |
 | Connection string | `ConnectionStrings:ApplicationDb` in every host of the module | |
-| User secrets id | `shipwise-<module>-<host>`, lowercase | `shipwise-identity-api` |
+| User secrets id | `shipwise-<module>-api`, lowercase, on the API project only | `shipwise-identity-api` |
+| Local port | The next free port after the Gateway's 19090, in `launchSettings.json` | Identity uses 19091 |
 | Test project | `tests/Shipwise.<Module>.Tests` | `tests/Shipwise.Identity.Tests` |
 
 ## 3. Projects
@@ -121,7 +124,8 @@ Copy the code from [templates.md](templates.md) and replace `Sample` and `sample
   adds `ApplyReliabilityConfigurations(...)` only when the module gets a Worker.
 - **Unit of work** opens a read-committed transaction, saves and commits only when the
   response is not a failed `Result`, and otherwise rolls back and clears the change
-  tracker. It contains no business constraint names; map a specific database error to a
+  tracker. On an exception it lets the disposed transaction roll back instead of rolling
+  back explicitly, so a rollback error cannot hide the original failure. It contains no business constraint names; map a specific database error to a
   domain exception in the feature that owns the constraint. Do not enable
   `EnableRetryOnFailure`: it conflicts with this explicit transaction.
 - **Design-time factory** reads `SHIPWISE_DESIGN_POSTGRES` and falls back to the local
@@ -138,7 +142,10 @@ Copy the code from [templates.md](templates.md) and replace `Sample` and `sample
     exists.
   - API and Worker never call `MigrateAsync` or `EnsureCreated`.
 - **MigrationRunner** applies migrations and exits with 0, or logs the exception type only
-  and exits with 1.
+  and exits with 1. It reads `ConnectionStrings:ApplicationDb` from the environment
+  (`ConnectionStrings__ApplicationDb`) or the command line; it has no user secrets, since
+  a plain console project does not load them without an extra package. `MigrateAsync`
+  creates the database when it does not exist.
 - No controller, command, query, entity or migration ships in a skeleton.
 
 ## 6. Required configuration
@@ -171,8 +178,8 @@ tokens signed with the test key.
 Required, no database needed:
 - `/health/live` answers 200 without credentials; `/health/ready` answers 503 when the
   database is unreachable.
-- A protected endpoint answers 401 without a token, 403 with a token that lacks the
-  permission, and 200 with it.
+- A controller deriving from `ApiController` with no attribute of its own answers 401
+  without a token, 403 with a token that lacks the permission, and 200 with it.
 - A query runs through the pipeline; `NotFoundException` becomes 404 with its code.
 - An invalid command answers 400 with field-keyed errors.
 - `context.Database.HasPendingModelChanges()` is false and the default schema is the
@@ -201,14 +208,12 @@ Required, with PostgreSQL (`[PostgreSqlFact]`, must run in CI):
       new module, its hosts and its configuration keys
 - [ ] Commits follow the commit rule, one logical step each (projects, hosts, tests, docs)
 
-## 9. Not covered by the verification run
+## 9. Not covered by the Identity skeleton
 
-State these as unverified in the first module's handoff report and prove them there:
-- Everything that needs a database: the unit of work's commit and rollback, the
-  MigrationRunner, `/health/ready` answering 200.
-- The templates under the repository's analyzers (StyleCop, Roslynator). Fix what they
-  report; do not suppress it.
-- Reading secrets from the secrets directory.
+State these as unverified in the handoff report of the work that first needs them:
+- Reading secrets from the secrets directory (the code path exists; no test or run used it).
+- User secrets on a developer machine: the Identity runs passed settings through
+  environment variables.
 - A Worker. Add one only when the module publishes or consumes its first message, in the
   spec that introduces that message: it needs the reliability tables in a migration, the
   outbox relay, broker topology and the contracts in `src/Contracts`. Read

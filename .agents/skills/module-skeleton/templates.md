@@ -1,16 +1,18 @@
 # Module skeleton templates
 
-These files are the throwaway module `Sample` (schema `sample`) that was built and run to
-verify the module-skeleton rules. Replace `Sample` with the module name and `sample` with
-the lowercase schema, keep everything else, and add nothing business-specific.
+A snapshot of the Identity module skeleton (`src/Modules/Shipwise.Identity` and
+`tests/Shipwise.Identity.Tests`) as first created, with the module renamed to `Sample`
+(schema `sample`). Replace `Sample` and `sample` with the new module's name and keep
+everything else; add nothing business-specific.
 
-The source files below are copied unchanged from that run. The project files are shown in
-repository form: the run used the same references with explicit versions, because it was
-built outside the repository.
+The Identity form of these files is the one that was built under the repository's
+analyzers with no warning and tested, including against PostgreSQL. The `Sample` form
+below was produced from it by renaming only. If the Identity skeleton files in Git history
+and this snapshot ever differ, the Identity files win and this file is regenerated.
 
 ## Project files
 
-`Shipwise.Sample.Domain.csproj`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Domain/Shipwise.Sample.Domain.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -20,7 +22,7 @@ built outside the repository.
 </Project>
 ```
 
-`Shipwise.Sample.Application.csproj`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Application/Shipwise.Sample.Application.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -31,7 +33,7 @@ built outside the repository.
 </Project>
 ```
 
-`Shipwise.Sample.Infrastructure.csproj`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Infrastructure/Shipwise.Sample.Infrastructure.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -53,7 +55,7 @@ built outside the repository.
 </Project>
 ```
 
-`Shipwise.Sample.API.csproj`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.API/Shipwise.Sample.API.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
@@ -69,13 +71,12 @@ built outside the repository.
 </Project>
 ```
 
-`Shipwise.Sample.MigrationRunner.csproj`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.MigrationRunner/Shipwise.Sample.MigrationRunner.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <UserSecretsId>shipwise-sample-migrationrunner</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Shipwise.Sample.Infrastructure/Shipwise.Sample.Infrastructure.csproj" />
@@ -104,10 +105,10 @@ built outside the repository.
 
 ## Source files
 
-The Domain project holds the same `AssemblyReference` class in the
-`Shipwise.Sample.Domain` namespace and nothing else.
+The Domain project holds the same `AssemblyReference` class in its own namespace and
+nothing else.
 
-`Shipwise.Sample.Application/AssemblyReference.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Application/AssemblyReference.cs`
 
 ```csharp
 using System.Reflection;
@@ -120,7 +121,7 @@ public static class AssemblyReference
 }
 ```
 
-`Shipwise.Sample.Application/DependencyInjection/ServiceCollectionExtensions.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Application/DependencyInjection/ServiceCollectionExtensions.cs`
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -137,7 +138,7 @@ public static class ServiceCollectionExtensions
 }
 ```
 
-`Shipwise.Sample.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -184,7 +185,7 @@ public static class ServiceCollectionExtensions
 }
 ```
 
-`Shipwise.Sample.Infrastructure/Persistence/DbContexts/SampleDbContext.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Infrastructure/Persistence/DbContexts/SampleDbContext.cs`
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -204,7 +205,7 @@ public sealed class SampleDbContext(DbContextOptions<SampleDbContext> options) :
 }
 ```
 
-`Shipwise.Sample.Infrastructure/Persistence/DbContexts/SampleDbContextFactory.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Infrastructure/Persistence/DbContexts/SampleDbContextFactory.cs`
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -229,7 +230,7 @@ public sealed class SampleDbContextFactory : IDesignTimeDbContextFactory<SampleD
 }
 ```
 
-`Shipwise.Sample.Infrastructure/Persistence/Core/SampleUnitOfWork.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.Infrastructure/Persistence/Core/SampleUnitOfWork.cs`
 
 ```csharp
 using System.Data;
@@ -270,15 +271,8 @@ public sealed class SampleUnitOfWork(SampleDbContext dbContext) : IUnitOfWork
         }
         catch
         {
-            try
-            {
-                await transaction.RollbackAsync(CancellationToken.None);
-            }
-            catch (Exception)
-            {
-                // The original failure is the one worth reporting.
-            }
-
+            // Disposing the uncommitted transaction rolls it back; an explicit rollback here
+            // could throw and hide the original failure.
             dbContext.ChangeTracker.Clear();
             throw;
         }
@@ -286,7 +280,7 @@ public sealed class SampleUnitOfWork(SampleDbContext dbContext) : IUnitOfWork
 }
 ```
 
-`Shipwise.Sample.API/Health/DatabaseHealthCheck.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.API/Health/DatabaseHealthCheck.cs`
 
 ```csharp
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -303,7 +297,7 @@ public sealed class DatabaseHealthCheck(SampleDbContext dbContext) : IHealthChec
 }
 ```
 
-`Shipwise.Sample.API/Program.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.API/Program.cs`
 
 ```csharp
 using System.Globalization;
@@ -402,7 +396,7 @@ static Task WriteHealthAsync(HttpContext context, HealthReport report)
 }
 ```
 
-`Shipwise.Sample.MigrationRunner/Program.cs`
+`src/Modules/Shipwise.Sample/Shipwise.Sample.MigrationRunner/Program.cs`
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -435,59 +429,107 @@ catch (Exception exception)
 }
 ```
 
+`src/Modules/Shipwise.Sample/Shipwise.Sample.API/appsettings.json`
+
+```json
+{
+  "AllowedHosts": "localhost;127.0.0.1",
+  "Cors": {
+    "AllowedOrigins": [ "http://localhost:5173" ],
+    "AllowedMethods": [ "GET", "POST", "PUT", "DELETE" ],
+    "AllowedHeaders": [ "Content-Type", "Authorization", "Idempotency-Key", "X-Correlation-ID", "traceparent", "tracestate" ],
+    "ExposedHeaders": [ "X-Correlation-ID", "Retry-After" ],
+    "AllowCredentials": false
+  },
+  "Serilog": {
+    "Using": [ "Serilog.Sinks.Console" ],
+    "MinimumLevel": { "Default": "Information", "Override": { "Microsoft.AspNetCore": "Warning", "Microsoft.EntityFrameworkCore.Database.Command": "Warning" } },
+    "WriteTo": [ { "Name": "Console", "Args": { "formatter": "Serilog.Formatting.Json.JsonFormatter, Serilog" } } ]
+  },
+  "Observability": { "Enabled": false, "ServiceName": "Shipwise.Sample.API" }
+}
+```
+
+`src/Modules/Shipwise.Sample/Shipwise.Sample.API/Properties/launchSettings.json`
+
+```json
+{
+  "profiles": {
+    "Local": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:19091",
+      "environmentVariables": { "ASPNETCORE_ENVIRONMENT": "Development", "DOTNET_ENVIRONMENT": "Development" }
+    }
+  }
+}
+```
+
 ## Test project
 
-The factory, a token helper and the test-only controller, query, command and validator that
-exercise the pipeline. Keep the test-only types in the test project.
+`Host/` needs no database; `Persistence/` runs only with `SHIPWISE_TEST_POSTGRES` set and
+must run in CI. The probe controller and requests are test-only and never ship.
 
-`Shipwise.Sample.Tests/HostTests.cs`
+`tests/Shipwise.Sample.Tests/Host/SampleApiFactory.cs`
 
 ```csharp
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
-using Shipwise.AspNetCore.Controllers;
-using Shipwise.AspNetCore.Security;
-using Shipwise.Sample.Infrastructure.Persistence.DbContexts;
-using Shipwise.SharedKernel.Abstractions.Message;
-using Shipwise.SharedKernel.Abstractions.Shared;
-using Shipwise.SharedKernel.Cqrs;
 using Shipwise.SharedKernel.DependencyInjection;
-using Shipwise.SharedKernel.Exceptions;
 using Shipwise.SharedKernel.Security;
-using Xunit;
-using ValidationException = Shipwise.SharedKernel.Exceptions.ValidationException;
 
-namespace Shipwise.Sample.Tests;
+namespace Shipwise.Sample.Tests.Host;
 
-public sealed class SampleApiFactory : WebApplicationFactory<Program>
+/// <summary>
+/// Starts the real Sample API with test-only settings, plus the probe controller and
+/// requests from this assembly so the pipeline can be exercised without a business endpoint.
+/// </summary>
+public class SampleApiFactory : WebApplicationFactory<Program>
 {
     public const string SigningKey = "test-only-signing-key-0123456789-abcdef";
     public const string Issuer = "shipwise-tests";
     public const string Audience = "shipwise-tests";
 
+    /// <summary>Gets the connection string the host uses. The default points at nothing.</summary>
+    protected virtual string ConnectionString
+        => "Host=127.0.0.1;Port=1;Database=none;Username=none;Timeout=1";
+
+    public static string CreateToken(params string[] permissions)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+            new(CustomClaims.SessionId, Guid.NewGuid().ToString()),
+        };
+        claims.AddRange(permissions.Select(permission => new Claim(CustomClaims.Permission, permission)));
+
+        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = Issuer,
+            Audience = Audience,
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey)),
+                SecurityAlgorithms.HmacSha256),
+        });
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // The host reads configuration while it registers services, so these must be host
+        // settings: values added later through ConfigureAppConfiguration arrive too late.
         builder.UseEnvironment("Testing");
-        builder.UseSetting("ConnectionStrings:ApplicationDb", "Host=127.0.0.1;Port=1;Database=none;Username=none;Timeout=1");
+        builder.UseSetting("ConnectionStrings:ApplicationDb", ConnectionString);
         builder.UseSetting("Jwt:SecretKey", SigningKey);
         builder.UseSetting("Jwt:Issuer", Issuer);
         builder.UseSetting("Jwt:Audience", Audience);
         builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "5");
-        builder.UseSetting("Cors:AllowedOrigins:0", "http://localhost:5173");
-        builder.UseSetting("Cors:AllowedMethods:0", "GET");
-        builder.UseSetting("Cors:AllowedHeaders:0", "content-type");
         builder.UseSetting("IntegrationApi:ApiKeys:0", "test-only-integration-key");
         builder.ConfigureTestServices(services =>
         {
@@ -497,37 +539,123 @@ public sealed class SampleApiFactory : WebApplicationFactory<Program>
         });
     }
 
-    public static string Token(params string[] permissions)
-    {
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
-            new(CustomClaims.SessionId, Guid.NewGuid().ToString()),
-        };
-        claims.AddRange(permissions.Select(permission => new Claim(CustomClaims.Permission, permission)));
-        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
-        {
-            Issuer = Issuer,
-            Audience = Audience,
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(5),
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey)), SecurityAlgorithms.HmacSha256),
-        });
-    }
-
     private sealed class AlwaysActiveValidator : IAuthenticatedContextValidator
     {
-        public Task<bool> IsActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<bool> IsActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken)
+            => Task.FromResult(true);
+    }
+}
+```
+
+`tests/Shipwise.Sample.Tests/Host/ProbeEndpoints.cs`
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Shipwise.AspNetCore.Controllers;
+using Shipwise.AspNetCore.Security;
+using Shipwise.Sample.Infrastructure.Persistence.DbContexts;
+using Shipwise.SharedKernel.Abstractions.Message;
+using Shipwise.SharedKernel.Abstractions.Shared;
+using Shipwise.SharedKernel.Cqrs;
+using Shipwise.SharedKernel.Exceptions;
+using Shipwise.SharedKernel.Security;
+using ValidationException = Shipwise.SharedKernel.Exceptions.ValidationException;
+
+namespace Shipwise.Sample.Tests.Host;
+
+/// <summary>
+/// Test-only endpoints. They exist so the skeleton's request pipeline, authentication and
+/// transaction handling can be proven before the module has any business endpoint.
+/// </summary>
+#pragma warning disable SA1402 // The probe types belong together and never ship.
+public sealed class ProbeController(ISender sender) : ApiController(sender)
+{
+    [HttpGet("ok")]
+    [PermissionAuthorize("Probe", ActionType.View)]
+    public async Task<IActionResult> GetOk(CancellationToken cancellationToken)
+        => Ok((await Sender.SendAsync(new GetProbeQuery(false), cancellationToken)).Value);
+
+    [HttpGet("missing")]
+    [PermissionAuthorize("Probe", ActionType.View)]
+    public async Task<IActionResult> GetMissing(CancellationToken cancellationToken)
+        => Ok((await Sender.SendAsync(new GetProbeQuery(true), cancellationToken)).Value);
+
+    [HttpPost]
+    [PermissionAuthorize("Probe", ActionType.Create)]
+    public async Task<IActionResult> Create(CreateProbeRequest request, CancellationToken cancellationToken)
+    {
+        Result<string> result = await Sender.SendAsync(new CreateProbeCommand(request.Name), cancellationToken);
+        return result.IsFailure ? HandleFailure(result) : Ok(result.Value);
     }
 }
 
+public sealed record CreateProbeRequest(string Name);
+
+public sealed record GetProbeQuery(bool Missing) : IQuery<string>;
+
+public sealed class GetProbeQueryHandler : IQueryHandler<GetProbeQuery, string>
+{
+    public Task<Result<string>> HandleAsync(GetProbeQuery request, CancellationToken cancellationToken)
+        => request.Missing
+            ? throw new NotFoundException("Probe", 42)
+            : Task.FromResult(Result.Success("hello"));
+}
+
+/// <summary>
+/// Inserts a row into the probe table. The names "throw" and "fail" make the handler throw
+/// or return a failed result after the insert, to prove the transaction is rolled back.
+/// </summary>
+public sealed record CreateProbeCommand(string Name) : ICommand<string>;
+
+public sealed class CreateProbeCommandValidator : IValidator<CreateProbeCommand>
+{
+    public Task ValidateAsync(CreateProbeCommand request, CancellationToken cancellationToken)
+        => string.IsNullOrWhiteSpace(request.Name)
+            ? throw new ValidationException([new ValidationError("name", "Name is required.")])
+            : Task.CompletedTask;
+}
+
+public sealed class CreateProbeCommandHandler(SampleDbContext dbContext) : ICommandHandler<CreateProbeCommand, string>
+{
+    public async Task<Result<string>> HandleAsync(CreateProbeCommand request, CancellationToken cancellationToken)
+    {
+        await dbContext.Database.ExecuteSqlAsync(
+            $"INSERT INTO public.\"SkeletonProbe\" (\"Name\") VALUES ({request.Name})",
+            cancellationToken);
+
+        return request.Name switch
+        {
+            "throw" => throw new ConflictException("Probe.Conflict", "The probe was asked to throw."),
+            "fail" => Result.Failure<string>(new Error("Probe.Failed", "The probe was asked to fail.")),
+            _ => Result.Success(request.Name),
+        };
+    }
+}
+#pragma warning restore SA1402
+```
+
+`tests/Shipwise.Sample.Tests/Host/HostTests.cs`
+
+```csharp
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Shipwise.Sample.Infrastructure.Persistence.DbContexts;
+using Xunit;
+
+namespace Shipwise.Sample.Tests.Host;
+
+/// <summary>Host behavior that needs no database.</summary>
 public sealed class HostTests(SampleApiFactory factory) : IClassFixture<SampleApiFactory>
 {
     [Fact]
     public async Task LiveIsHealthyWithoutCredentials()
     {
         HttpResponseMessage response = await factory.CreateClient().GetAsync("/health/live");
+
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -535,58 +663,76 @@ public sealed class HostTests(SampleApiFactory factory) : IClassFixture<SampleAp
     public async Task ReadyIsUnhealthyWhenTheDatabaseIsUnreachable()
     {
         HttpResponseMessage response = await factory.CreateClient().GetAsync("/health/ready");
+
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
     [Fact]
-    public async Task ProtectedEndpointRejectsMissingToken()
+    public async Task ControllerWithoutItsOwnAttributeRejectsMissingToken()
     {
+        // ProbeController carries no [Authorize]; the ApiController base class must supply it.
         HttpResponseMessage response = await factory.CreateClient().GetAsync("/api/v1/probe/ok");
+
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Contains("Request.Unauthorized", await response.Content.ReadAsStringAsync());
+        Assert.Contains("Request.Unauthorized", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task ProtectedEndpointRejectsTokenWithoutPermission()
+    public async Task TokenWithoutThePermissionIsForbidden()
     {
-        HttpResponseMessage response = await Client(SampleApiFactory.Token()).GetAsync("/api/v1/probe/ok");
+        HttpResponseMessage response = await Client(SampleApiFactory.CreateToken()).GetAsync("/api/v1/probe/ok");
+
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
-    public async Task QueryRunsThroughThePipelineWithPermission()
+    public async Task QueryRunsThroughThePipelineWithThePermission()
     {
-        HttpResponseMessage response = await Client(SampleApiFactory.Token("Probe.View")).GetAsync("/api/v1/probe/ok");
+        HttpResponseMessage response = await Client(SampleApiFactory.CreateToken("Probe.View")).GetAsync("/api/v1/probe/ok");
         string body = await response.Content.ReadAsStringAsync();
+
         Assert.True(response.StatusCode == HttpStatusCode.OK, body);
-        Assert.Contains("\"data\":\"hello\"", body);
+        Assert.Contains("\"data\":\"hello\"", body, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task NotFoundExceptionBecomes404()
+    public async Task NotFoundExceptionBecomes404WithItsCode()
     {
-        HttpResponseMessage response = await Client(SampleApiFactory.Token("Probe.View")).GetAsync("/api/v1/probe/missing");
+        HttpResponseMessage response = await Client(SampleApiFactory.CreateToken("Probe.View")).GetAsync("/api/v1/probe/missing");
+
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Contains("Thing.NotFound", await response.Content.ReadAsStringAsync());
+        Assert.Contains("Probe.NotFound", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task InvalidCommandReturnsFieldErrorsBeforeAnyTransaction()
     {
-        HttpResponseMessage response = await Client(SampleApiFactory.Token("Probe.Create"))
+        HttpResponseMessage response = await Client(SampleApiFactory.CreateToken("Probe.Create"))
             .PostAsJsonAsync("/api/v1/probe", new { name = string.Empty });
         string body = await response.Content.ReadAsStringAsync();
+
         Assert.True(response.StatusCode == HttpStatusCode.BadRequest, body);
-        Assert.Contains("\"name\":[\"Name is required.\"]", body);
+        Assert.Contains("\"name\":[\"Name is required.\"]", body, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ModelHasNoPendingChanges()
+    public async Task UnknownApiRouteAnswersWithTheErrorEnvelope()
+    {
+        HttpResponseMessage response = await factory.CreateClient().GetAsync("/api/v1/does-not-exist");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains("Request.NotFound", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ModelMatchesTheMigrationsAndUsesTheModuleSchema()
     {
         using IServiceScope scope = factory.Services.CreateScope();
         SampleDbContext context = scope.ServiceProvider.GetRequiredService<SampleDbContext>();
+
         Assert.False(context.Database.HasPendingModelChanges());
-        Assert.Equal("sample", context.Model.GetDefaultSchema());
+        Assert.Equal(SampleDbContext.Schema, context.Model.GetDefaultSchema());
+        Assert.Equal("sample", SampleDbContext.Schema);
     }
 
     private HttpClient Client(string token)
@@ -596,49 +742,189 @@ public sealed class HostTests(SampleApiFactory factory) : IClassFixture<SampleAp
         return client;
     }
 }
+```
 
-public sealed record GetThingQuery(bool Missing) : IQuery<string>;
+`tests/Shipwise.Sample.Tests/Persistence/PostgreSqlFactAttribute.cs`
 
-public sealed class GetThingQueryHandler : IQueryHandler<GetThingQuery, string>
+```csharp
+using Xunit;
+
+namespace Shipwise.Sample.Tests.Persistence;
+
+/// <summary>Runs only when a PostgreSQL test server is configured; CI always configures one.</summary>
+public sealed class PostgreSqlFactAttribute : FactAttribute
 {
-    public Task<Result<string>> HandleAsync(GetThingQuery request, CancellationToken cancellationToken)
-        => request.Missing ? throw new NotFoundException("Thing", 42) : Task.FromResult(Result.Success("hello"));
+    public const string ServerVariable = "SHIPWISE_TEST_POSTGRES";
+
+    public PostgreSqlFactAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ServerVariable)))
+        {
+            Skip = $"Set {ServerVariable} to a PostgreSQL test server whose user may create databases.";
+        }
+    }
 }
+```
 
-public sealed record CreateThingRequest(string Name);
+`tests/Shipwise.Sample.Tests/Persistence/PostgreSqlDatabaseFixture.cs`
 
-public sealed record CreateThingCommand(string Name) : ICommand<Guid>;
+```csharp
+using Npgsql;
+using Xunit;
 
-public sealed class CreateThingCommandValidator : IValidator<CreateThingCommand>
+namespace Shipwise.Sample.Tests.Persistence;
+
+/// <summary>
+/// Creates a database of its own on the configured test server and drops it afterwards, so
+/// these tests never share tables with another test project running at the same time.
+/// Does nothing when no server is configured; the tests are skipped in that case.
+/// </summary>
+public sealed class PostgreSqlDatabaseFixture : IAsyncLifetime
 {
-    public Task ValidateAsync(CreateThingCommand request, CancellationToken cancellationToken)
-        => string.IsNullOrWhiteSpace(request.Name)
-            ? throw new ValidationException([new ValidationError("name", "Name is required.")])
-            : Task.CompletedTask;
+    private readonly string? _serverConnectionString =
+        Environment.GetEnvironmentVariable(PostgreSqlFactAttribute.ServerVariable);
+
+    private readonly string _databaseName = "shipwise_sample_tests_" + Guid.NewGuid().ToString("N");
+
+    public string ConnectionString { get; private set; } = string.Empty;
+
+    public async Task InitializeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_serverConnectionString))
+        {
+            return;
+        }
+
+        await ExecuteOnServerAsync($"CREATE DATABASE \"{_databaseName}\"");
+        ConnectionString = new NpgsqlConnectionStringBuilder(_serverConnectionString)
+        {
+            Database = _databaseName,
+            Pooling = false,
+        }.ConnectionString;
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_serverConnectionString))
+        {
+            return;
+        }
+
+        await ExecuteOnServerAsync($"DROP DATABASE IF EXISTS \"{_databaseName}\" WITH (FORCE)");
+    }
+
+    public async Task<long> ScalarAsync(string sql, params NpgsqlParameter[] parameters)
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddRange(parameters);
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public async Task ExecuteAsync(string sql)
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task ExecuteOnServerAsync(string sql)
+    {
+        await using var connection = new NpgsqlConnection(_serverConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync();
+    }
 }
+```
 
-public sealed class CreateThingCommandHandler : ICommandHandler<CreateThingCommand, Guid>
+`tests/Shipwise.Sample.Tests/Persistence/PersistenceTests.cs`
+
+```csharp
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using Shipwise.Sample.Infrastructure.DependencyInjection;
+using Shipwise.Sample.Infrastructure.Persistence.DbContexts;
+using Shipwise.Sample.Tests.Host;
+using Xunit;
+
+namespace Shipwise.Sample.Tests.Persistence;
+
+/// <summary>Behavior that needs a real PostgreSQL database.</summary>
+public sealed class PersistenceTests(PostgreSqlDatabaseFixture database) : IClassFixture<PostgreSqlDatabaseFixture>
 {
-    public Task<Result<Guid>> HandleAsync(CreateThingCommand request, CancellationToken cancellationToken)
-        => Task.FromResult(Result.Success(Guid.NewGuid()));
-}
+    [PostgreSqlFact]
+    public async Task MigrateCreatesTheHistoryTableInTheModuleSchemaAndCanRunTwice()
+    {
+        // The MigrationRunner does exactly this: AddPersistence, then MigrateAsync.
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:" + ServiceCollectionExtensions.ConnectionStringName] = database.ConnectionString,
+            })
+            .Build();
+        await using ServiceProvider provider = new ServiceCollection()
+            .AddLogging()
+            .AddPersistence(configuration)
+            .BuildServiceProvider();
+        await using AsyncServiceScope scope = provider.CreateAsyncScope();
+        SampleDbContext context = scope.ServiceProvider.GetRequiredService<SampleDbContext>();
 
-[Authorize]
-public sealed class ProbeController(ISender sender) : ApiController(sender)
-{
-    [HttpGet("ok")]
-    [PermissionAuthorize("Probe", ActionType.View)]
-    public async Task<IActionResult> GetOk(CancellationToken cancellationToken)
-        => Ok((await Sender.SendAsync(new GetThingQuery(false), cancellationToken)).Value);
+        await context.Database.MigrateAsync();
+        await context.Database.MigrateAsync();
 
-    [HttpGet("missing")]
-    [PermissionAuthorize("Probe", ActionType.View)]
-    public async Task<IActionResult> GetMissing(CancellationToken cancellationToken)
-        => Ok((await Sender.SendAsync(new GetThingQuery(true), cancellationToken)).Value);
+        long tables = await database.ScalarAsync(
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = @schema AND table_name = '__EFMigrationsHistory'",
+            new NpgsqlParameter("schema", SampleDbContext.Schema));
+        Assert.Equal(1, tables);
+    }
 
-    [HttpPost]
-    [PermissionAuthorize("Probe", ActionType.Create)]
-    public async Task<IActionResult> Create(CreateThingRequest request, CancellationToken cancellationToken)
-        => Ok((await Sender.SendAsync(new CreateThingCommand(request.Name), cancellationToken)).Value);
+    [PostgreSqlFact]
+    public async Task ReadyIsHealthyWhenTheDatabaseIsReachable()
+    {
+        await using var factory = new DatabaseApiFactory(database.ConnectionString);
+
+        HttpResponseMessage response = await factory.CreateClient().GetAsync("/health/ready");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [PostgreSqlFact]
+    public async Task CommandCommitsOnSuccessAndLeavesNothingBehindOnFailure()
+    {
+        await database.ExecuteAsync("CREATE TABLE IF NOT EXISTS public.\"SkeletonProbe\" (\"Name\" text NOT NULL)");
+        await using var factory = new DatabaseApiFactory(database.ConnectionString);
+        HttpClient client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", SampleApiFactory.CreateToken("Probe.Create"));
+
+        HttpResponseMessage committed = await client.PostAsJsonAsync("/api/v1/probe", new { name = "kept" });
+        HttpResponseMessage threw = await client.PostAsJsonAsync("/api/v1/probe", new { name = "throw" });
+        HttpResponseMessage failed = await client.PostAsJsonAsync("/api/v1/probe", new { name = "fail" });
+
+        Assert.True(committed.StatusCode == HttpStatusCode.OK, await committed.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, threw.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
+        Assert.Equal(1, await CountAsync("kept"));
+        Assert.Equal(0, await CountAsync("throw"));
+        Assert.Equal(0, await CountAsync("fail"));
+    }
+
+    private Task<long> CountAsync(string name)
+        => database.ScalarAsync(
+            "SELECT count(*) FROM public.\"SkeletonProbe\" WHERE \"Name\" = @name",
+            new NpgsqlParameter("name", name));
+
+    private sealed class DatabaseApiFactory(string connectionString) : SampleApiFactory
+    {
+        protected override string ConnectionString => connectionString;
+    }
 }
 ```

@@ -10,9 +10,9 @@ against the BuildingBlocks source and, where marked "verified", against a runnin
 the real base controller, filter, middleware and pipeline. The platform was extracted from
 another product: ignore examples, paths or type names from DeliveryPilot or DevFlow.
 
-No module exists yet, so there is no module code to copy from. When one exists, read its
-nearest use case first and stay consistent with it; if it contradicts these rules, stop and
-ask (`AGENTS.md`, "Stop and ask").
+The Identity module is a base skeleton with no use case yet, so there is no business code to
+copy from. When a module has use cases, read its nearest one first and stay consistent with
+it; if it contradicts these rules, stop and ask (`AGENTS.md`, "Stop and ask").
 
 ## 1. What the platform provides
 
@@ -120,14 +120,14 @@ Verified behavior of `ApiController` with `ApiResponseEnvelopeFilter` and
 | Throws anything else, including reading `.Value` of a failed `Result` | 500 `Server.Unhandled` |
 
 Rules that follow:
-- Use `Result.Failure(error)` only for a business rule the client broke, where 400 is the
-  right answer. For not found, conflict, forbidden, unauthenticated and unavailable, throw
-  the exception type; a failed `Result` cannot produce those status codes.
-- One outcome, one mechanism: do not return a failure for a case in one handler and throw
-  for the same case in another.
-- Every controller action checks the result: `return result.IsFailure ?
-  HandleFailure(result) : ...`. Never read `.Value` before that check, and never return
-  success without checking.
+- Signal every expected failure by throwing the matching exception: `BadRequestException`
+  for a business rule the client broke, and the not found, conflict, forbidden,
+  unauthenticated and unavailable types for the rest. Handlers return only successful
+  results; do not add `Result.Failure` paths. A failed `Result` always answers 400 and
+  hides the real status, and one mechanism keeps every failure path the same.
+- Controllers still guard the result: `return result.IsFailure ? HandleFailure(result) :
+  ...`. Never read `.Value` before that check; on a failed result it throws and answers
+  500.
 - Error codes are `<Resource>.<Reason>` in PascalCase (`Organization.NotFound`,
   `Organization.SlugTaken`), defined once in `<Resource>Errors`. They are part of the API
   contract: the frontend switches on them, so never rename one without a spec change.
@@ -144,12 +144,13 @@ Rules that follow:
   endpoints (it has no `Sender`; inject `ISender` yourself), `IntegrationApiController`
   for machine callers with an API key (route prefix `api/v1/integrations/...`; answers 503
   until keys are configured).
-- **`ApiController` does not require authentication by itself** (verified: an action with
-  no attribute answers 200 without credentials). Every controller that derives from it
-  carries `[Authorize]` on the class, and every action carries
+- `ApiController` carries `[Authorize]`, so every controller deriving from it requires a
+  valid token (proven in `tests/Shipwise.Identity.Tests`: a controller with no attribute
+  of its own answers 401). Never remove or override that. Every action also carries
   `[PermissionAuthorize("<Function>", ActionType.<Action>)]` with the function name the
-  spec gives. Never invent a permission name, and never use `PublicApiController` or
-  `[AllowAnonymous]` unless the spec says the endpoint is public.
+  spec gives: a token alone is not permission. Never invent a permission name, and never
+  use `PublicApiController` or `[AllowAnonymous]` unless the spec says the endpoint is
+  public.
 - An attribute is not tenant isolation. Every handler also filters by the caller's
   organization in the query itself, and the tests prove another organization gets 404.
 - Routes come from the base class: `api/v{version}/[controller]`. Ids come from the route,
@@ -166,7 +167,6 @@ Rules that follow:
   the spec's API contract. A contract change lands in the spec first.
 
 ```csharp
-[Authorize]
 public sealed class OrganizationsController(ISender sender) : ApiController(sender)
 {
     [HttpPost]
@@ -234,9 +234,9 @@ app.MapControllers();
   `AddCurrentUserProvider()`, `AddConfiguredAuthentication(configuration, environment)`,
   `AddConfiguredAuthorization()`, `UseCorrelationId()`, and the audit interceptor
   registration from the ef-migrations skill.
-- `AddConfiguredAuthorization()` sets no fallback policy, which is why the `[Authorize]`
-  rule in section 5 is mandatory. A fallback policy requiring an authenticated user would
-  make a forgotten attribute fail closed, but it would also apply to
+- `AddConfiguredAuthorization()` sets no fallback policy; protection comes from the
+  `[Authorize]` on `ApiController`. A fallback policy requiring an authenticated user would
+  also cover controllers that do not derive from it, but it would apply to
   `IntegrationApiController`, which authenticates by API key only. Whether to add one is
   decided in the identity ADR, not in a feature task.
 - Never assume a route, registration, permission, policy or migration exists: open the
@@ -263,9 +263,9 @@ never log message payloads.
 ## 10. Checklist (author checks before committing, reviewer rechecks)
 
 - [ ] Files, names and project references follow section 2; no forbidden package added
-- [ ] Controller is thin, has `[Authorize]` and a `[PermissionAuthorize]` per action; any
-      anonymous endpoint is named in the spec
-- [ ] Every action checks `IsFailure` before `Value`; status codes follow section 4 and
+- [ ] Controller is thin, derives from the right base class and has a `[PermissionAuthorize]`
+      per action; any anonymous endpoint is named in the spec
+- [ ] Failures are thrown, never returned; actions check `IsFailure` before `Value`; status codes follow section 4 and
       match the spec and `[ProducesResponseType]`
 - [ ] Validation errors carry field names; error codes come from `<Resource>Errors`
 - [ ] Handlers take identity and organization from `ICurrentUserProvider` and filter every
