@@ -69,16 +69,18 @@ or anything that does not say what changed. The first migration of a module is `
 | enum | `smallint` | `HasConversion<short>()` plus `CK_<Table>_<Enum>` listing allowed values; never renumber existing members |
 | `decimal` money/quantities | `numeric(p,s)` | Always `HasPrecision(p, s)`, e.g. `(19,4)` for money |
 | `bool` | `boolean` | Not null, with a default when added to an existing table |
-| value objects | owned types or columns | `OwnsOne`/`ComplexProperty`; `jsonb` only for genuinely schemaless data |
+| value objects | columns on the owner's table | `ComplexProperty` (columns `<Property>_<Member>`); not `OwnsOne`/`OwnsMany`, which become separate tracked entries that soft delete deletes; `jsonb` only for genuinely schemaless data |
 
 - Required: mark every non-nullable reference type `IsRequired()`; nullable columns must be
   nullable in C# too.
 - Audit columns from `Entity`/`SoftDeletableEntity` (`CreatedAt`, `CreatedBy`,
   `UpdatedAt`, `UpdatedBy`, `IsDeleted`, `DeletedAt`, `DeletedBy`): map them on every
-  table that inherits them; `*By` columns are `HasMaxLength(64)`. The
-  `AuditSaveChangesInterceptor` fills them; never set them in handlers.
+  table that inherits them; `*By` columns are `HasMaxLength(64)` and stay nullable. See
+  "Base classes and the audit interceptor" below for who sets them.
 - Soft delete: add `HasQueryFilter(x => !x.IsDeleted)` and make unique indexes filtered:
-  `.HasFilter("\"IsDeleted\" = false")`.
+  `.HasFilter("\"IsDeleted\" = false")`. Delete through a domain method that calls
+  `MarkDeleted()`, never `DbContext.Remove()` or `EfRepositoryBase.RemoveEntity()` (see
+  below).
 - Concurrency: aggregates that can be edited concurrently get
   `public uint Version { get; private set; }` mapped with `.IsRowVersion()` (Npgsql maps it
   to the `xmin` system column, so no migration column and no manual bumping).
@@ -87,7 +89,56 @@ or anything that does not say what changed. The first migration of a module is `
   `OrganizationId`.
 - Index every foreign key column and every column a spec'd query filters or sorts on.
 - Delete behavior is explicit on every relationship (`OnDelete(DeleteBehavior.Restrict)` by
-  default; `Cascade` only for owned children, stated in the spec).
+  default). `Cascade` only for children of a hard-deleted (`Entity`) aggregate, stated in
+  the spec; never under a `SoftDeletableEntity` principal.
+
+### Base classes and the audit interceptor
+
+Module entities inherit one of the SharedKernel bases; nothing else in the platform is a
+base for persisted entities.
+
+| Base (`Shipwise.SharedKernel.Abstractions.Domain`) | Columns it brings | Use for |
+|---|---|---|
+| `Entity` (`Entity<Guid>`) | `Id`, `CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy` | Entities that are hard deleted |
+| `SoftDeletableEntity` | the above plus `IsDeleted`, `DeletedAt`, `DeletedBy` | Entities that are soft deleted |
+| none | - | `OutboxMessage`, `InboxMessage`, `IdempotencyRecord` are platform-owned: never inherit, remap or extend them |
+
+Rules (each was checked against the real interceptor on a throwaway model):
+- Ids: constructors pass `Guid.CreateVersion7()` to `base(id)`; the parameterless
+  constructor is private and exists only for EF. With `ValueGeneratedNever()` a skipped id
+  is saved as `Guid.Empty` and the second insert fails on the primary key.
+- Never redeclare, hide or assign the audit properties in handlers. `CreatedAt` is set when
+  the entity is constructed; `AuditSaveChangesInterceptor` sets `CreatedBy` on insert,
+  `UpdatedAt`/`UpdatedBy` on every update, and `DeletedAt`/`DeletedBy` on soft delete. With
+  no signed-in user (MigrationRunner, workers, seeding) the `*By` values are null.
+- Soft delete only through the domain: expose a method that calls `MarkDeleted()`, then
+  save. Verified: the root becomes one UPDATE with all audit columns set and children stay
+  untouched. `DbContext.Remove()` on a soft-deletable root is wrong: the interceptor turns
+  only the root into an UPDATE, while owned types and loaded `Cascade` children are still
+  hard deleted, and with `Restrict` the `Remove()` call throws. Children that must disappear
+  with their parent are `SoftDeletableEntity` too and the domain method marks them.
+- Register the interceptor per scope, because it resolves the scoped
+  `ICurrentUserProvider`. Verified: a singleton registration throws "Cannot resolve scoped
+  service ... from root provider".
+  ```csharp
+  services.AddScoped<AuditSaveChangesInterceptor>();
+  services.AddDbContext<OrganizationsDbContext>((sp, options) => options
+      .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "organizations"))
+      .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+  ```
+- `ExecuteUpdate`/`ExecuteDelete` skip SaveChanges interceptors, so they write no audit
+  columns and perform hard deletes. Do not use them on audited or soft-deletable tables
+  unless the code sets the audit columns itself and the spec says why.
+- Times: use `DateTimeOffset.UtcNow` (or `TimeProvider`); Npgsql writes
+  `timestamp with time zone` only for offset zero, so `DateTimeOffset.Now` fails at save.
+- Row version vs revision: the concurrency property is `uint Version` (verified: Npgsql
+  maps it to `xmin` and creates no column). If an aggregate also needs an event revision
+  for the outbox (`OutboxMessage.AggregateRevision`, `IDomainEvent.Version`), name that
+  persisted `long` property `Revision`.
+- A dependent with a required navigation to a soft-deletable principal gets the same
+  query filter (or an optional navigation); EF warns otherwise.
+- Reliability tables live in the fixed `reliability` schema of the module's own database,
+  which is why modules never share a database.
 
 ## 4. Commands
 
@@ -152,9 +203,17 @@ and nothing calls `EnsureCreated` against a module database.
 - An infrastructure test (`[PostgreSqlFact]`, runs in CI) that applies all migrations to
   an empty database with `MigrateAsync()` and exercises one write and read per new table.
 - Tests for every check constraint and unique index the migration adds (violations fail).
+- For each soft-deletable aggregate: deleting through the domain method leaves one row with
+  `IsDeleted`, `DeletedAt` and `DeletedBy` set, hides it from queries, and leaves children
+  untouched.
 
 ## 7. Pull request checklist (author fills, reviewer checks)
 
+- [ ] Matches the spec's "Database design" exactly (tables, columns, types, indexes,
+      constraints, migration names); any deviation went back to the spec first
+- [ ] Entities inherit `Entity` or `SoftDeletableEntity`, pass a v7 id to `base(id)`, never
+      assign audit columns, soft delete via `MarkDeleted()` (no `Remove()`), use
+      `ComplexProperty` for value objects, and the interceptor is registered per scope
 - [ ] Migration name follows section 2 and describes the change
 - [ ] Table, index, constraint names and column types follow sections 2 and 3
 - [ ] `has-pending-model-changes` prints "No changes"
