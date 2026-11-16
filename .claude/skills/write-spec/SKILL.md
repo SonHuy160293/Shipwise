@@ -25,8 +25,10 @@ objections to look rigorous: every finding needs evidence.
 2. **Restate.** One short paragraph: who has the problem, what they do today, what they can
    do after this ships, and how success is measured. If you cannot write it, that gap is
    your first question.
-3. **Check reasonableness.** Label each finding `blocker`, `risk` or `note`, with its
-   evidence (a file and line, an ADR, a source):
+3. **Check reasonableness.** Label each finding `blocker`, `risk` or `note`, and state its
+   basis: `verified` (a file and line, an ADR or a linked source), `assumed` (plausible but
+   unconfirmed; say what depends on it), `open` (needs the user's decision) or `conflict`
+   (contradicts an approved spec, an ADR or the code). Check:
    - Problem: real and specific, or a solution looking for a problem? Who needs it?
    - Value vs cost: the smallest version that proves the value; what can be cut or deferred.
    - Fit: conflicts with `AGENTS.md`, `ARCHITECTURE.md`, ADRs, existing specs, module
@@ -35,7 +37,11 @@ objections to look rigorous: every finding needs evidence.
    - Risk: security, authorization and tenancy, personal data and privacy, destructive data
      changes, performance at the expected volume, operability and observability.
    - Gaps: permissions, concurrency, deletion and restore, empty and failure states, limits
-     and abuse, time zones, idempotency of writes.
+     and abuse, time zones, idempotency of writes, duplicate submissions, partial failure
+     and stale state.
+   - Impact: which existing flows, data and contract consumers change or could break.
+   - Proof: what observable evidence would show each outcome works; an outcome nobody can
+     test is not a requirement yet.
    - Unrecorded decisions (identity, persistence, messaging, a new dependency): propose an
      ADR in `docs/adr/NNNN-slug.md` before the spec.
 4. **Research real-world practice.** Use WebSearch, and WebFetch for primary sources, to see
@@ -64,7 +70,7 @@ has resolved every blocker and chosen an approach.
 **Verdict:** go | go with changes | rethink, and why in one sentence
 
 ### Findings
-| # | Severity | Finding | Evidence |
+| # | Severity | Basis | Finding | Evidence |
 
 ### Real-world practice
 - <Product or standard>: <what they do>; implication for us ([source](url))
@@ -87,20 +93,36 @@ relitigating it.
 
 Start only after the brief is answered. Carry the chosen approach, the research and the
 answers into the spec; anything still unanswered becomes a recorded assumption using the
-default you stated.
+default you stated. The process around the spec (lanes, gates, who decides) is in
+`docs/workflow.md`; a change that fits its small change lane needs no spec.
+
+### Design proposal before approval
+
+When the feature adds or changes screens, check the depth table in `docs/workflow.md`. If
+it asks for a proposal, do not finalize "UI and states" yourself:
+
+1. Write the draft spec with stories, acceptance criteria and a first API contract.
+2. Give the user this handoff for Gemini, run in `../Shipwise-Web`: "Read spec NNNN in
+   ../Shipwise/docs/specs and docs/design/proposals/README.md. Write the design proposal
+   for it in docs/design/proposals/NNNN-slug/. Do not change production code."
+3. When the proposal exists, reconcile it into the spec: every screen and state is in
+   "UI and states"; every field a screen shows or sends exists in the API contract; every
+   action maps to an endpoint and an acceptance criterion; nothing needs a token that
+   `DESIGN.md` lacks. Raise each mismatch with the user instead of choosing silently.
+4. Record the proposal path and commit in the spec header, then ask for approval.
 
 ## File
 
 `docs/specs/NNNN-slug.md`, numbered after the highest existing spec, with
 `Status: draft | approved | done`. Only a human sets `approved`; implementers start only
-from approved specs.
+from approved specs. Branches for the spec are named `feat/NNNN-slug` in both repositories.
 
 ## Template
 
 ````markdown
 # NNNN Title
 
-Status: draft · Owner: Claude Code · Related ADRs: none
+Status: draft · Owner: Claude Code · Related ADRs: none · Design proposal: none
 
 ## Problem and outcome
 Who has the problem, what they can do after this ships, and how we will know.
@@ -114,8 +136,14 @@ Approaches considered with their trade-offs, the one chosen and why, and any con
 planner raised that the user decided against (kept so reviewers know it was weighed).
 
 ## User stories and acceptance criteria
-- As a <role>, I can <action> so that <value>.
-  - Given ... when ... then ... (each criterion testable; include permissions/tenancy)
+- US-1: As a <role>, I can <action> so that <value>.
+  - AC-1: Given ... when ... then ... (each criterion testable; include permissions/tenancy)
+  - AC-2: ...
+Number criteria AC-1, AC-2, ... across the whole spec and never renumber after approval.
+
+## Non-functional requirements
+Only the ones that apply: response-time or volume targets, limits and rate limits,
+availability, audit, privacy and retention. Write "None beyond platform defaults" if so.
 
 ## API contract
 Endpoints (method, path, request, response, status codes, error shape), auth and tenancy
@@ -125,6 +153,13 @@ contracts/openapi/shipwise.v1.json; the frontend never invents fields beyond it.
 ## Backend design
 Module and layer placement (Domain, Application, Infrastructure, API), aggregates and
 invariants, commands vs queries, events or outbox use, observability.
+
+Sequence diagram (Mermaid `sequenceDiagram`): required when the flow crosses modules, uses
+messaging or the outbox, or has a step sensitive to concurrency or retries. Show the
+authorization step and the main failure paths. Omit it for a plain request and response.
+
+Rollout and compatibility: what existing clients or data see while this deploys, the order
+backend and frontend must ship in, and how to roll back.
 
 ## Database design
 Follows the ef-migrations skill. Write "No database changes" if none, and skip the rest.
@@ -171,22 +206,38 @@ Destructive: yes needs a separate expand and contract migration per release and 
 approval before the spec is approved.
 
 ## UI and states
-Routes, screens and components; loading, empty, error, success and permission-denied
-states; responsive behavior at 375/768/1440px; accessibility notes. Reference DESIGN.md
-tokens; no new tokens without a human-approved DESIGN.md change.
+Routes, screens and components; for each screen the states that apply: loading, empty,
+success, validation error, request failure with retry, submitting or disabled, and
+permission-denied; responsive behavior at 375/768/1440px; accessibility notes. Reference
+DESIGN.md tokens; no new tokens without a human-approved DESIGN.md change. Built from the
+design proposal when docs/workflow.md asks for one.
 
 ## Test plan
-Backend unit and infrastructure tests, frontend behavior tests, Playwright E2E path.
+| Criterion | Test (type and where) |
+|---|---|
+| AC-1 | Backend unit test in tests/... |
+| AC-2 | Playwright E2E in Shipwise-Web tests/e2e/... |
+
+Every criterion has at least one test. When the feature reads or writes organization-owned
+data, these are mandatory: a user without the permission is refused, and a user of another
+organization can neither read nor change the data (backend tests, not only UI checks).
 
 ## Tasks
-| # | Owner | Repo | Paths | Depends on | Done when (commands) |
-|---|-------|------|-------|------------|----------------------|
-| 1 | Codex | Shipwise | src/Modules/<Name>/**, contracts/openapi/** | - | scripts/Verify-Platform.ps1 passes |
-| 2 | Codex | Shipwise-Web | src/lib/api/**, src/features/<name>/api/** | 1 | npm run check passes |
-| 3 | Gemini | Shipwise-Web | src/features/<name>/components/**, pages/** | 2 | npm run check, npm run test:e2e, impeccable detect clean |
-| 4 | Claude Code | both | review | 1-3 | definition of done met |
+| # | Owner | Repo | Paths | Covers | Depends on | Done when (commands) |
+|---|-------|------|-------|--------|------------|----------------------|
+| 1 | Codex | Shipwise | src/Modules/<Name>/**, contracts/openapi/** | AC-1, AC-3 | - | scripts/Verify-Platform.ps1 passes |
+| 2 | Codex | Shipwise-Web | src/lib/api/**, src/features/<name>/api/** | AC-1 | 1 | npm run check passes |
+| 3 | Gemini | Shipwise-Web | src/features/<name>/components/**, pages/** | AC-1, AC-2 | 2 | npm run check, npm run test:e2e, impeccable detect clean |
+| 4 | Claude Code | both | review (review-pr skill) | all | 1-3 | no open blocker, definition of done met |
 
 ## Assumptions and open questions
+
+## Change log
+Changes made after approval: date, what changed, why, who approved. Empty until then.
+
+## Delivery record
+Filled when the spec is closed: pull request links per task, approved deviations, the
+date the human confirmed the integration check, deferred follow-ups.
 ````
 
 ## Rules for the database design
@@ -208,9 +259,22 @@ Backend unit and infrastructure tests, frontend behavior tests, Playwright E2E p
   (`Directory.Packages.props`, `Shipwise.slnx`, `package.json`/`package-lock.json`,
   `src/app/router/**`, `DESIGN.md`, `src/styles/globals.css`) belong to exactly one task.
 - Each task is one pull request with verification commands that prove it done.
+- Each task lists the acceptance criteria it covers, and every criterion is covered by at
+  least one task and one row of the test plan.
 - Keep slices thin: one user-visible outcome per spec. Split anything bigger.
 
 ## Finish
 
 Summarize the spec in a few lines, list the decisions taken from the challenge brief and the
 open questions, and ask the user to approve it.
+
+## After approval
+
+- **Changing the spec.** An implementer's decision request, a review finding or the user
+  can show the approved spec is wrong. Follow "Changing an approved spec" in
+  `docs/workflow.md`: state what was approved and the new evidence, propose the smallest
+  fix with alternatives, get the user's approval, edit the spec, add a change log line and
+  say which tasks must be redone. Never renumber acceptance criteria; retire or add them.
+- **Closing.** When every task's pull request is merged and the user confirms their
+  integration check, set `Status: done` and fill the delivery record. Suggest updates to
+  `AGENTS.md` or a skill when the feature exposed a missing rule.

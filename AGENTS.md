@@ -23,8 +23,12 @@ platform code only; business modules and contracts are deliberately absent.
 ## Roles and ownership
 
 Specs live in docs/specs (written with the write-spec skill) and decisions in docs/adr.
+The process (lanes, gates, who decides, changing a spec, closing) is in docs/workflow.md.
 Every task comes from a spec's task table, which names its owner, repository, paths and
-verification commands; work only on paths your task owns.
+verification commands; work only on paths your task owns. The one exception is the small
+change lane: a change that touches no API contract, database schema, permission rule or
+approved screen behavior, and stays inside one role's paths, needs no spec, only a
+focused test, the pull request template and a review.
 
 - Claude Code (planner, BA, solution architect, tech lead): writes specs, ADRs and task
   tables, and reviews every pull request. Does not write product code.
@@ -33,8 +37,22 @@ verification commands; work only on paths your task owns.
   `codex --add-dir ../Shipwise-Web` when a task spans both repositories.
 - Gemini (frontend developer and designer): works in Shipwise-Web only; it reads specs
   and the contract from this repository but never edits it.
-- Order within a feature: spec, then the backend + contract pull request, then the
-  frontend pull requests, each reviewed by Claude.
+- Order within a feature: challenge brief, draft spec, Gemini's design proposal for new
+  pages, the approved spec, then the backend + contract pull request, then the frontend
+  pull requests, each reviewed by Claude with the review-pr skill.
+- Work on `feat/NNNN-slug` (or `fix/<slug>`), never on `main`. Check the branch and
+  working tree before editing; never discard work you did not make, never force-push,
+  and never merge or deploy: a human does.
+
+## Stop and ask
+
+Stop the affected task and write a decision request (context, options, recommendation,
+impact, safe default) instead of guessing when: a requirement is missing or contradicts
+another; the spec conflicts with the code, the contract or the design proposal; you find
+a cross-organization access, data-loss or destructive-migration risk; the task needs
+paths it does not own; or the scope, dependencies or rollout risk grow beyond the spec.
+The safe default is not to implement the contested behavior. Never fix a spec or
+contract inconsistency silently in code.
 
 ## Definition of done
 
@@ -43,5 +61,6 @@ PostgreSQL and RabbitMQ, so infrastructure tests must pass there, not skip); beh
 changes have focused tests; no new analyzer warnings are introduced; migrations pass
 the ef-migrations checklist with their SQL script in the pull request; the OpenAPI
 document is regenerated and committed when the contract changed; a different agent
-than the author has reviewed the diff; and the handoff reports the actual commands
-run and their results, listing skipped tests separately.
+than the author has reviewed the diff; and the pull request template is filled in with
+the acceptance criteria covered and the actual commands run and their results
+(`PASSED`, `FAILED` or `NOT_RUN`), listing skipped tests separately.
