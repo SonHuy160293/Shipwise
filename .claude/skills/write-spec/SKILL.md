@@ -115,7 +115,8 @@ it asks for a proposal, do not finalize "UI and states" yourself:
 
 `docs/specs/NNNN-slug.md`, numbered after the highest existing spec, with
 `Status: draft | approved | done`. Only a human sets `approved`; implementers start only
-from approved specs. Branches for the spec are named `feat/NNNN-slug` in both repositories.
+from approved specs. Commits for the spec carry `Spec: NNNN task N` (commit rule in
+`docs/workflow.md`).
 
 ## Template
 
@@ -228,7 +229,7 @@ organization can neither read nor change the data (backend tests, not only UI ch
 | 1 | Codex | Shipwise | src/Modules/<Name>/**, contracts/openapi/** | AC-1, AC-3 | - | scripts/Verify-Platform.ps1 passes |
 | 2 | Codex | Shipwise-Web | src/lib/api/**, src/features/<name>/api/** | AC-1 | 1 | npm run check passes |
 | 3 | Gemini | Shipwise-Web | src/features/<name>/components/**, pages/** | AC-1, AC-2 | 2 | npm run check, npm run test:e2e, impeccable detect clean |
-| 4 | Claude Code | both | review (review-pr skill) | all | 1-3 | no open blocker, definition of done met |
+| 4 | Claude Code | both | review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
 
 ## Assumptions and open questions
 
@@ -236,7 +237,7 @@ organization can neither read nor change the data (backend tests, not only UI ch
 Changes made after approval: date, what changed, why, who approved. Empty until then.
 
 ## Delivery record
-Filled when the spec is closed: pull request links per task, approved deviations, the
+Filled when the spec is closed: commit hashes per task, approved deviations, the
 date the human confirmed the integration check, deferred follow-ups.
 ````
 
@@ -258,7 +259,8 @@ date the human confirmed the integration check, deferred follow-ups.
 - No two tasks that can run at the same time share a path. Shared hot files
   (`Directory.Packages.props`, `Shipwise.slnx`, `package.json`/`package-lock.json`,
   `src/app/router/**`, `DESIGN.md`, `src/styles/globals.css`) belong to exactly one task.
-- Each task is one pull request with verification commands that prove it done.
+- Each task is one reviewable set of commits with verification commands that prove it
+  done; it is reviewed and pushed before the tasks that depend on it start.
 - Each task lists the acceptance criteria it covers, and every criterion is covered by at
   least one task and one row of the test plan.
 - Keep slices thin: one user-visible outcome per spec. Split anything bigger.
@@ -275,6 +277,6 @@ open questions, and ask the user to approve it.
   `docs/workflow.md`: state what was approved and the new evidence, propose the smallest
   fix with alternatives, get the user's approval, edit the spec, add a change log line and
   say which tasks must be redone. Never renumber acceptance criteria; retire or add them.
-- **Closing.** When every task's pull request is merged and the user confirms their
+- **Closing.** When every task's commits are pushed and the user confirms their
   integration check, set `Status: done` and fill the delivery record. Suggest updates to
   `AGENTS.md` or a skill when the feature exposed a missing rule.

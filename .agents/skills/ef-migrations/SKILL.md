@@ -1,6 +1,6 @@
 ---
 name: ef-migrations
-description: Mandatory rules for Shipwise database changes with EF Core code-first on PostgreSQL. Use whenever you add or change an entity, DbContext, entity configuration, index, constraint, seed data or migration in a Shipwise module, review such a pull request, or plan a spec that changes the database. Covers naming conventions, column types, migration commands, safe (expand/contract) changes, tests and the review checklist.
+description: Mandatory rules for Shipwise database changes with EF Core code-first on PostgreSQL. Use whenever you add or change an entity, DbContext, entity configuration, index, constraint, seed data or migration in a Shipwise module, review such a change, or plan a spec that changes the database. Covers naming conventions, column types, migration commands, safe (expand/contract) changes, tests and the review checklist.
 ---
 
 # EF Core migrations (PostgreSQL, code-first)
@@ -150,18 +150,18 @@ back to the local compose database; it never contains real credentials.
 $m = 'Organizations'   # module
 $infra = "src/Modules/$m/Shipwise.$m.Infrastructure"
 
-# Add (one migration per pull request per module)
+# Add (one migration per task per module, in its own commit)
 dotnet ef migrations add AddOrganizationSlug --project $infra --startup-project $infra `
   --context "${m}DbContext" --output-dir Persistence/Migrations
 
 # Prove the model and migrations agree (must print "No changes")
 dotnet ef migrations has-pending-model-changes --project $infra --startup-project $infra --context "${m}DbContext"
 
-# Script for review: paste into the pull request description
+# Script for review: give it to the reviewer in the handoff report
 dotnet ef migrations script <PreviousMigration> AddOrganizationSlug --idempotent `
   --project $infra --startup-project $infra --context "${m}DbContext"
 
-# Undo a migration that has NOT been merged
+# Undo a migration that has NOT been pushed
 dotnet ef migrations remove --project $infra --startup-project $infra --context "${m}DbContext"
 ```
 
@@ -171,13 +171,13 @@ and nothing calls `EnsureCreated` against a module database.
 
 ## 5. Safe change rules
 
-1. Never edit, rename or delete a migration that is on `main`. Fix forward with a new one.
-   On an unmerged branch, `migrations remove` and re-add instead of editing generated code.
-2. Model snapshot conflicts: never hand-merge `<Module>DbContextModelSnapshot.cs`. Rebase on
+1. Never edit, rename or delete a migration that has been pushed. Fix forward with a new one.
+   Before it is pushed, `migrations remove` and re-add instead of editing generated code.
+2. Model snapshot conflicts: never hand-merge `<Module>DbContextModelSnapshot.cs`. Pull the latest
    `main`, remove your migration, re-add it.
 3. Review the generated `Up` and `Down` code before committing. EF turns renames into drop +
    add: replace them with `RenameColumn`/`RenameTable` so data survives.
-4. Destructive or locking changes use expand/contract across separate pull requests and
+4. Destructive or locking changes use expand/contract across separate releases and
    need the spec to say "destructive: yes" plus human approval:
    - drop a column/table: stop reading and writing it first, drop it in a later release;
    - rename: add the new column, backfill, switch code, drop the old one later;
@@ -207,7 +207,7 @@ and nothing calls `EnsureCreated` against a module database.
   `IsDeleted`, `DeletedAt` and `DeletedBy` set, hides it from queries, and leaves children
   untouched.
 
-## 7. Pull request checklist (author fills, reviewer checks)
+## 7. Change checklist (author checks before committing, reviewer rechecks)
 
 - [ ] Matches the spec's "Database design" exactly (tables, columns, types, indexes,
       constraints, migration names); any deviation went back to the spec first
@@ -217,8 +217,8 @@ and nothing calls `EnsureCreated` against a module database.
 - [ ] Migration name follows section 2 and describes the change
 - [ ] Table, index, constraint names and column types follow sections 2 and 3
 - [ ] `has-pending-model-changes` prints "No changes"
-- [ ] Idempotent SQL script pasted in the PR; renames are renames, not drop + add
+- [ ] Idempotent SQL script given to the reviewer; renames are renames, not drop + add
 - [ ] Destructive change? Spec says so and a human approved; expand/contract followed
 - [ ] Indexes for foreign keys, tenancy and spec'd queries; delete behavior explicit
 - [ ] Tests from section 6 added and passing in CI (infrastructure tests not skipped)
-- [ ] No migration on `main` was edited; snapshot regenerated, not hand-merged
+- [ ] No pushed migration was edited; snapshot regenerated, not hand-merged

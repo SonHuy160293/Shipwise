@@ -9,7 +9,7 @@ spec's task table assigns to them. Shipwise-Web agents read this folder from the
 backend checkout.
 
 Acceptance criteria are numbered `AC-1`, `AC-2`, ... and referenced by tasks, tests and
-pull requests. Changes after approval go through the spec's change log, and a spec is
+commit messages. Changes after approval go through the spec's change log, and a spec is
 `done` only with its delivery record filled in. The surrounding process, including the
 small change lane that needs no spec, is in [docs/workflow.md](../workflow.md).
 

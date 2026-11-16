@@ -28,21 +28,37 @@ Every task comes from a spec's task table, which names its owner, repository, pa
 verification commands; work only on paths your task owns. The one exception is the small
 change lane: a change that touches no API contract, database schema, permission rule or
 approved screen behavior, and stays inside one role's paths, needs no spec, only a
-focused test, the pull request template and a review.
+focused test, a commit under the commit rule and a review.
 
 - Claude Code (planner, BA, solution architect, tech lead): writes specs, ADRs and task
-  tables, and reviews every pull request. Does not write product code.
+  tables, and reviews every change before it is pushed. Does not write product code.
 - Codex (fullstack developer): everything in this repository, plus the Shipwise-Web data
   layer (generated contract, feature API hooks and schemas). Start Codex here with
   `codex --add-dir ../Shipwise-Web` when a task spans both repositories.
 - Gemini (frontend developer and designer): works in Shipwise-Web only; it reads specs
   and the contract from this repository but never edits it.
 - Order within a feature: challenge brief, draft spec, Gemini's design proposal for new
-  pages, the approved spec, then the backend + contract pull request, then the frontend
-  pull requests, each reviewed by Claude with the review-pr skill.
-- Work on `feat/NNNN-slug` (or `fix/<slug>`), never on `main`. Check the branch and
-  working tree before editing; never discard work you did not make, never force-push,
-  and never merge or deploy: a human does.
+  pages, the approved spec, then the backend + contract task, then the frontend tasks,
+  each reviewed by Claude with the review-change skill before it is pushed.
+
+## Commit rule
+
+No pull requests or feature branches in this phase: commit directly to `main`. The full
+rule is in docs/workflow.md.
+
+- Run `git status` before editing. If the working tree has changes you did not make,
+  stop and ask; never discard, reset, stash or overwrite them.
+- Commit only when the task's verification commands pass; `main` is never left red. One
+  logical change per commit; stage explicit paths, never `git add -A`.
+- Message: `<type>(<scope>): <summary>` in at most 72 characters (types: feat, fix,
+  refactor, perf, test, docs, build, ci, chore), a body saying what and why, then the
+  trailers `Spec: NNNN task N` (or `Spec: none (small change)`), `Covers: AC-n, ...` and
+  `Verified: <command> PASSED|FAILED; ...`. Add `Not-run:`, `Deviations:` and
+  `Migration:` lines when they apply. Never write PASSED for a command you did not run.
+- Never amend, rebase or force-push pushed commits, and never use `--no-verify`; fix
+  forward with a new commit.
+- Do not push. Report the commit hashes and results; the human pushes after the review
+  has no open blocker.
 
 ## Stop and ask
 
@@ -59,8 +75,8 @@ contract inconsistency silently in code.
 A change is done only when: scripts/Verify-Platform.ps1 passes (CI runs it with
 PostgreSQL and RabbitMQ, so infrastructure tests must pass there, not skip); behavior
 changes have focused tests; no new analyzer warnings are introduced; migrations pass
-the ef-migrations checklist with their SQL script in the pull request; the OpenAPI
+the ef-migrations checklist with their SQL script given to the reviewer; the OpenAPI
 document is regenerated and committed when the contract changed; a different agent
-than the author has reviewed the diff; and the pull request template is filled in with
-the acceptance criteria covered and the actual commands run and their results
-(`PASSED`, `FAILED` or `NOT_RUN`), listing skipped tests separately.
+than the author has reviewed the commits before they are pushed; and the commit
+messages follow the commit rule, with the acceptance criteria covered and the actual
+commands run and their results, listing skipped tests separately in the handoff report.
