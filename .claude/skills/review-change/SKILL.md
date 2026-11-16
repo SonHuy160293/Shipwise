@@ -58,6 +58,9 @@ set of commits of one task, normally the unpushed commits on `main`.
 - `AGENTS.md` rules: BuildingBlocks references, CQRS pipeline order and transaction
   ownership, no MediatR, auth fails closed, telemetry privacy, cancellation tokens passed
   through, no credentials or sensitive payloads logged.
+- Application and API code: every item of the cqrs-api checklist (section 10 of
+  `.agents/skills/cqrs-api/SKILL.md`), in particular `[Authorize]` on every controller,
+  status codes per its section 4, and no save or commit in handlers.
 - Database changes: every item of the ef-migrations checklist (section 7 of
   `.agents/skills/ef-migrations/SKILL.md`). Read the idempotent SQL script from the
   handoff report, or generate it yourself with the command in section 4.

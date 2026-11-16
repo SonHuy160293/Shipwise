@@ -150,6 +150,10 @@ availability, audit, privacy and retention. Write "None beyond platform defaults
 Endpoints (method, path, request, response, status codes, error shape), auth and tenancy
 rules, idempotency for writes, pagination. This becomes the OpenAPI document at
 contracts/openapi/shipwise.v1.json; the frontend never invents fields beyond it.
+Follow the cqrs-api skill sections 4 and 5: every response is the `{ success, data, error }`
+envelope; a command without a value answers 200, never 204; list each error code
+(`<Resource>.<Reason>`) with its status; name the permission (`<Function>`, action) each
+endpoint requires, or state that it is public.
 
 ## Backend design
 Module and layer placement (Domain, Application, Infrastructure, API), aggregates and

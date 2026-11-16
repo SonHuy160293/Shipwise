@@ -6,6 +6,9 @@ platform code only; business modules and contracts are deliberately absent.
 - Follow .editorconfig and centralized package versions; retain net10.0.
 - BuildingBlocks may reference only other BuildingBlocks, without cycles.
 - Keep custom CQRS pipeline order and transaction ownership; never add MediatR.
+- Commands, queries, handlers, validators, controllers, error-to-HTTP mapping and
+  repositories follow the cqrs-api skill in .agents/skills/cqrs-api. `ApiController` does
+  not require authentication by itself: put `[Authorize]` on every controller.
 - Auth must fail closed without an authoritative active-context validator.
 - Keep business catalogs, DbContexts, migrations and broker topology out of shared code.
 - Database changes (EF Core code-first, PostgreSQL) follow the ef-migrations skill in
