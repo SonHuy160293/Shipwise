@@ -35,7 +35,7 @@ foreach ($project in $projects) {
             if ($layer -eq 'Application' -and $dependency -eq 'Shipwise.AspNetCore') { $allowed = $false }
         }
         if (-not $allowed) { throw "Forbidden dependency: $($project.Name) -> $target" }
-        if ($target -match 'Shipwise\.(Identity|Notification|Projects)') { throw "Excluded module reference: $target" }
+        if ($target -match 'Shipwise\.(Notification|Projects)') { throw "Excluded module reference: $target" }
         $graph[$project.FullName] += $target
     }
 }

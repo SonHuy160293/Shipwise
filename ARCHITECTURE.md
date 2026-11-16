@@ -12,10 +12,20 @@ It preserves separately composable hosts; it does not introduce a modular monoli
 | Observability | OTLP export and safe telemetry processors | None |
 | Utilities | Configuration helpers | None |
 | Gateway | Explicit YARP route allowlist and host composition | AspNetCore, Observability |
+| Identity.Domain | Empty: future aggregates and invariants | SharedKernel |
+| Identity.Application | CQRS registration and pipeline; no use case yet | Identity.Domain, SharedKernel |
+| Identity.Infrastructure | `IdentityDbContext` (schema `identity`), unit of work, design-time factory | Identity.Application, Identity.Domain, EntityFrameworkCore |
+| Identity.API | Host composition, `/health/live`, `/health/ready`; no controller yet | Identity.Application, Identity.Infrastructure, AspNetCore, Observability |
+| Identity.MigrationRunner | Applies migrations and exits | Identity.Infrastructure, Observability |
 
 BuildingBlocks never reference module implementations or contracts. The architecture
-script checks source and test project references for missing/external paths and cycles.
-Contracts and Modules are currently documentation-only extension points.
+script checks source and test project references for missing/external paths and cycles,
+and enforces the layer order inside a module. Contracts is still a documentation-only
+extension point. Identity is a base skeleton: it owns database `shipwise_identity` and
+schema `identity`, has no migration, registers no `IAuthenticatedContextValidator` (so
+every token is rejected), and has no Worker, outbox tables, Docker image or Gateway route.
+Its unit of work commits only when a command returns a successful result.
+`ApiController` requires an authenticated user for every derived controller.
 
 CQRS uses `ISender`, not MediatR. Registered behavior order is validation, logging,
 performance, tracing, transaction, handler. Only commands enter `IUnitOfWork`

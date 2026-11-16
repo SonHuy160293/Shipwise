@@ -8,9 +8,17 @@
     <Project Path="src/BuildingBlocks/Shipwise.Utilities/Shipwise.Utilities.csproj" />
     <Project Path="src/Gateway/Shipwise.Gateway/Shipwise.Gateway.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Shipwise.Identity/Shipwise.Identity.API/Shipwise.Identity.API.csproj" />
+    <Project Path="src/Modules/Shipwise.Identity/Shipwise.Identity.Application/Shipwise.Identity.Application.csproj" />
+    <Project Path="src/Modules/Shipwise.Identity/Shipwise.Identity.Domain/Shipwise.Identity.Domain.csproj" />
+    <Project Path="src/Modules/Shipwise.Identity/Shipwise.Identity.Infrastructure/Shipwise.Identity.Infrastructure.csproj" />
+    <Project Path="src/Modules/Shipwise.Identity/Shipwise.Identity.MigrationRunner/Shipwise.Identity.MigrationRunner.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Shipwise.AspNetCore.HttpClient.Tests/Shipwise.AspNetCore.HttpClient.Tests.csproj" />
     <Project Path="tests/Shipwise.Foundation.Tests/Shipwise.Foundation.Tests.csproj" />
     <Project Path="tests/Shipwise.Gateway.Tests/Shipwise.Gateway.Tests.csproj" />
+    <Project Path="tests/Shipwise.Identity.Tests/Shipwise.Identity.Tests.csproj" />
   </Folder>
 </Solution>

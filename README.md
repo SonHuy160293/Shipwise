@@ -1,13 +1,15 @@
 # Shipwise
 
-Reusable .NET 10 backend foundation extracted from DeliveryPilot commit `092de07`
-on 2026-11-14. The source repository was left unchanged. Identity, Notification and
-Projects implementations, contracts, migrations, business tests and product documents
-are excluded. This repository has no business API, token issuer or module database.
+.NET 10 backend for Shipwise. The platform foundation was extracted from DeliveryPilot
+commit `092de07` on 2026-11-14; the source repository was left unchanged, and its
+Identity, Notification and Projects implementations, contracts, migrations, business
+tests and product documents were not imported.
 
 The solution contains six BuildingBlocks (SharedKernel, AspNetCore,
 EntityFrameworkCore, Messaging, Observability and Utilities), an optional YARP
-Gateway, and three independent test projects. See [ARCHITECTURE.md](ARCHITECTURE.md).
+Gateway, the Identity module skeleton, and four test projects. See
+[ARCHITECTURE.md](ARCHITECTURE.md). There is no business API, token issuer or business
+table yet: the Identity module is an empty, running shell.
 
 ## Build and verify
 
@@ -43,6 +45,44 @@ Route `Metadata:CacheControl` can be set to `no-store` for private responses. JW
 helpers retain signature/lifetime validation and require an authoritative
 `IAuthenticatedContextValidator`; a missing validator rejects every token.
 
+## Run the Identity module skeleton
+
+`src/Modules/Shipwise.Identity` holds five projects (Domain, Application, Infrastructure,
+API, MigrationRunner). It has no entity, migration or endpoint; it exposes only
+`/health/live` and `/health/ready`, and Swagger in Development.
+
+The API does not start without these settings. Keep the secrets in user secrets locally,
+or as files under `SHIPWISE_CONFIG_SECRETS_DIRECTORY` (default `/run/secrets/config`) when
+deployed; never put them in `appsettings.json`.
+
+| Key | Purpose |
+|---|---|
+| `ConnectionStrings:ApplicationDb` | The module database, `shipwise_identity` |
+| `Jwt:SecretKey` | Token signing key, at least 32 bytes |
+| `Jwt:Issuer`, `Jwt:Audience`, `Jwt:AccessTokenExpirationMinutes` | Token validation |
+| `IntegrationApi:ApiKeys:0` | Required at startup even without integration endpoints |
+| `Cors:*`, `Serilog:*`, `Observability:*` | Non-secret; defaults are in `appsettings.json` |
+
+```powershell
+$api = 'src/Modules/Shipwise.Identity/Shipwise.Identity.API'
+dotnet user-secrets set 'ConnectionStrings:ApplicationDb' '<connection string>' --project $api
+dotnet user-secrets set 'Jwt:SecretKey' '<random value, 32 bytes or more>' --project $api
+dotnet user-secrets set 'Jwt:Issuer' 'shipwise-local' --project $api
+dotnet user-secrets set 'Jwt:Audience' 'shipwise-local' --project $api
+dotnet user-secrets set 'Jwt:AccessTokenExpirationMinutes' '15' --project $api
+dotnet user-secrets set 'IntegrationApi:ApiKeys:0' '<random value>' --project $api
+
+# Apply migrations (creates the database and the identity schema), then start the API.
+$env:ConnectionStrings__ApplicationDb = '<connection string>'
+dotnet run --project src/Modules/Shipwise.Identity/Shipwise.Identity.MigrationRunner
+dotnet run --project $api --launch-profile Local    # http://localhost:19091
+```
+
+The MigrationRunner reads its connection string from the environment or the command
+line, exits with 0 on success and 1 on failure, and is the only thing that applies
+migrations. No token is accepted yet: there is no `IAuthenticatedContextValidator`, so
+every protected endpoint answers 401 by design.
+
 ## Local Docker profiles
 
 Docker Desktop's Linux engine must be running. Compose is for local development;
@@ -62,7 +102,9 @@ Grafana is available at `http://localhost:23000` with username `admin` and passw
 from `SHIPWISE_GRAFANA_PASSWORD` (local default `local-observability-only`).
 
 For isolated infrastructure tests, use a dedicated empty database: tests create the
-`reliability` schema and must never target an application database.
+`reliability` schema and must never target an application database. The Identity tests
+create and drop a database of their own on the same server, so the test user must be
+allowed to create databases.
 
 ```powershell
 $env:SHIPWISE_TEST_POSTGRES = 'Host=localhost;Port=25431;Database=shipwise_tests;Username=shipwise_tests;Password=local-tests-only'
@@ -77,6 +119,7 @@ email-provider credentials or module broker topology.
 ## Add business functionality
 
 Start at [src/Modules](src/Modules/README.md) and [src/Contracts](src/Contracts/README.md).
-Future services own their DbContext, migrations, unit of work, consumers and event
-registrations. Shared reliability mappings do not create a runtime database by themselves.
+New modules are created with the module-skeleton skill in `.agents/skills`, and business
+code follows the cqrs-api and ef-migrations skills. Each module owns its DbContext,
+migrations, unit of work, consumers and event registrations. Shared reliability mappings do not create a runtime database by themselves.
 No DeliveryPilot product requirements or approval records were imported.

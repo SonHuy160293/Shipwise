@@ -8,7 +8,7 @@ namespace Shipwise.AspNetCore.Controllers;
 
 [ApiController]
 [ApiVersion(1.0)]
-//[Authorize]
+[Authorize]
 [Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public abstract class ApiController : ControllerBase

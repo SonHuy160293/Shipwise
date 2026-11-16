@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Shipwise.Identity.Domain/Shipwise.Identity.Domain.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Shipwise.SharedKernel/Shipwise.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

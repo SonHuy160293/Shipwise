@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>shipwise-identity-api</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Shipwise.Identity.Application/Shipwise.Identity.Application.csproj" />
+    <ProjectReference Include="../Shipwise.Identity.Infrastructure/Shipwise.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Shipwise.AspNetCore/Shipwise.AspNetCore.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Shipwise.Observability/Shipwise.Observability.csproj" />
+  </ItemGroup>
+</Project>
