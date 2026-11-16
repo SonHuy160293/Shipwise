@@ -11,6 +11,9 @@ platform code only; business modules and contracts are deliberately absent.
   not require authentication by itself: put `[Authorize]` on every controller.
 - Auth must fail closed without an authoritative active-context validator.
 - Keep business catalogs, DbContexts, migrations and broker topology out of shared code.
+- A new module, or a new host in a module, follows the module-skeleton skill in
+  .agents/skills/module-skeleton (names, projects, layout, host wiring, configuration,
+  tests) and always needs an approved spec.
 - Database changes (EF Core code-first, PostgreSQL) follow the ef-migrations skill in
   .agents/skills/ef-migrations: naming, column types, commands, expand/contract and tests.
 - Preserve telemetry privacy and cancellation. Never log credentials or sensitive payloads.

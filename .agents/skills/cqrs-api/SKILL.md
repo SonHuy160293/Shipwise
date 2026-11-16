@@ -52,20 +52,25 @@ name: `Shipwise.<Module>.Domain`, `.Application`, `.Infrastructure`, `.API`, `.W
 
 ```
 Shipwise.<Module>.Application/
-  <Resource>/                                e.g. Organizations/
-    <UseCase>/                               e.g. CreateOrganization/
+  Features/<Area>/                           e.g. Features/Organizations/
+    Commands/<UseCase>/                      e.g. Commands/CreateOrganization/
       CreateOrganizationCommand.cs           public sealed record ... : ICommand<Guid>
       CreateOrganizationCommandHandler.cs    sealed class ... : ICommandHandler<CreateOrganizationCommand, Guid>
       CreateOrganizationCommandValidator.cs  sealed class ... : IValidator<CreateOrganizationCommand>
-    GetOrganization/
+    Queries/<UseCase>/                       e.g. Queries/GetOrganization/
       GetOrganizationQuery.cs                public sealed record ... : IQuery<OrganizationResponse>
       GetOrganizationQueryHandler.cs
-      OrganizationResponse.cs                response DTO (record)
-  Abstractions/                              I<Resource>Repository, other ports
+      OrganizationResponse.cs                response DTO (record), local to the use case
+  Abstractions/<Kind>/                       Repositories/, Security/, Messaging/: ports the handlers need
 Shipwise.<Module>.API/
   Controllers/<Resources>Controller.cs
-  Requests/<UseCase>Request.cs               HTTP body model, separate from the command
+  Contracts/<Area>/<UseCase>Request.cs       HTTP body model, separate from the command
 ```
+
+Keep a use case's request, handler, validator and local response DTOs together in its
+folder. `Contracts/` in an API project holds HTTP request models only; cross-module
+contracts live in `src/Contracts`. The projects themselves, their wiring and hosts are
+created by the module-skeleton skill.
 
 - One type per file, file-scoped namespaces, `sealed` unless inheritance is designed.
 - Names: `<Verb><Noun>Command`, `Get<Noun>Query` or `List<Nouns>Query`, plus `Handler`,
@@ -208,7 +213,9 @@ public sealed class OrganizationsController(ISender sender) : ApiController(send
 
 ## 7. Host registration (first API host)
 
-Verified together in a probe unless marked otherwise:
+The complete host (`Program.cs`, health checks, configuration keys, test host) is in the
+module-skeleton skill and its templates; when the two differ, that skill wins. The order
+that matters for request handling, verified in a probe unless marked otherwise:
 
 ```csharp
 services.AddControllers(options => options.Filters.Add<ApiResponseEnvelopeFilter>());

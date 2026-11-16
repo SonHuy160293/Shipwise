@@ -58,6 +58,8 @@ set of commits of one task, normally the unpushed commits on `main`.
 - `AGENTS.md` rules: BuildingBlocks references, CQRS pipeline order and transaction
   ownership, no MediatR, auth fails closed, telemetry privacy, cancellation tokens passed
   through, no credentials or sensitive payloads logged.
+- A new module or host: every item of the module-skeleton checklist (section 8 of
+  `.agents/skills/module-skeleton/SKILL.md`); nothing business-specific rides along.
 - Application and API code: every item of the cqrs-api checklist (section 10 of
   `.agents/skills/cqrs-api/SKILL.md`), in particular `[Authorize]` on every controller,
   status codes per its section 4, and no save or commit in handlers.
