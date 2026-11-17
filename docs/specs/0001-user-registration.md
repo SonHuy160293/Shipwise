@@ -1,6 +1,6 @@
 # 0001 User registration
 
-Status: draft · Owner: Claude Code · Related ADRs: 0001, 0002, 0003 · Design proposal: pending (`Shipwise-Web/docs/design/proposals/0001-user-registration/`)
+Status: approved · Owner: Claude Code · Related ADRs: 0001, 0002, 0003 · Design proposal: `Shipwise-Web/docs/design/proposals/0001-user-registration/proposal.md` (commit `e71ed97`)
 
 ## Problem and outcome
 
@@ -123,7 +123,7 @@ Request body (JSON):
 
 | Field | Type | Rules |
 |---|---|---|
-| `email` | string | Required. Trimmed. 3 to 254 characters. Must look like an email address. |
+| `email` | string | Required. Trimmed. 3 to 254 characters. Exactly one `@`, at least one character before it, a `.` somewhere after it, and no whitespace. Frontend and backend apply this same rule, so neither rejects what the other accepts. |
 | `displayName` | string | Required. Trimmed. 1 to 100 characters. No control characters. Need not be unique. |
 | `password` | string | Required. 12 to 128 characters. Used exactly as sent, never trimmed. |
 
@@ -254,19 +254,54 @@ traces, metrics or error messages. No seed data. Expected volume: thousands of r
 
 ## UI and states
 
-Built from the design proposal, which is required because this is a new page
-(`docs/workflow.md`). Until it exists, this section lists only what the proposal must
-cover; it is not final.
+Built from the design proposal (`proposal.md`, commit `e71ed97`), which holds the full
+layout and token detail. Where the two differ, this section wins.
 
-- Route `/register`, public, reachable without signing in. The proposal decides whether it
-  sits inside or outside the application shell.
-- Fields: email, display name, password, with the rules from the API contract. The
-  proposal decides whether to show a password visibility toggle and length guidance.
-- States: idle, client validation error, submitting, server field errors, email taken,
-  rate limited, request failure with retry, success (confirmation naming the email).
-- After success there is nowhere to go until spec 0002 adds sign-in; the proposal says
-  what the confirmation offers.
-- Responsive at 375, 768 and 1440px; accessibility per AC-11; DESIGN.md tokens only.
+**Route and shell.** `/register` is public and sits outside `AppLayout`, in a new minimal
+public layout (`src/app/layouts/public-layout.tsx`): a skip-to-content link, a compact top
+bar with the Shipwise wordmark, and `<main id="main-content" tabIndex={-1}>`. The
+workspace sidebar and account menu are not shown to someone who is not signed in. Spec
+0002's sign-in page will reuse this layout.
+
+**Card and fields.** One centered bordered card (`max-w-md`, full width at 375px), titled
+"Create an account", with three labeled fields in this order:
+
+| Field | Control | Helper text | Client rule |
+|---|---|---|---|
+| Email | `type="email"`, `autoComplete="email"` | none | The API contract rule, after trimming |
+| Display name | `type="text"`, `autoComplete="name"` | "1–100 characters" | Trimmed, 1 to 100, no control characters |
+| Password | `type="password"`, `autoComplete="new-password"`, with a Show/Hide toggle | "12–128 characters" | 12 to 128, never trimmed |
+
+All three inputs are 44px tall in this form (set on the form, not by changing
+`src/components/ui/input.tsx`), matching the 44px toggle and submit button. No password
+strength meter. The submit button reads "Create account".
+
+**States.**
+
+| State | What the user sees | Focus |
+|---|---|---|
+| Loading the page | `LoadingIndicator` | - |
+| Idle | The form | - |
+| Client validation error | A message under each invalid field; `aria-invalid` | First invalid field |
+| Submitting | Button disabled, reads "Creating account…"; inputs read-only; no second submission | Unchanged |
+| Server field errors (400) | Each field named in `error.errors` shows the frontend's own message for that rule, never the server text | First invalid field |
+| Email taken (409) | Under email: "An account with this email already exists."; other values kept | Email |
+| Rate limited (429) | Form-level alert: "Too many registration attempts. Please wait N seconds and try again.", where N comes from `Retry-After` (without it: "a moment"); values kept | Unchanged |
+| Registration unavailable (404) | Form-level alert: "Registration is currently unavailable. Contact your administrator if you need an account." | Unchanged |
+| Failure (network, 5xx, 413) | Form-level alert: "Unable to create your account right now. Please try again."; submit re-enabled; values kept | Unchanged |
+| Success (201) | The form is replaced by "Account created" and "Your account for <email> is ready. You have not been signed in." | The confirmation heading |
+
+The confirmation offers no action. The proposal's "Register another account" button is left
+out by the owner's decision (2026-11-17): it invites duplicate accounts, and spec 0002 adds
+a "Sign in" link here instead. Permission-denied does not apply: the endpoint is public.
+After success the password is cleared from memory; no token, cookie or session is stored.
+
+**Accessibility.** Keyboard order: skip link, wordmark, email, display name, password,
+Show/Hide toggle (`type="button"`, `aria-pressed`, label switches between "Show password"
+and "Hide password"), submit. Every field has a visible label and its helper and error text
+linked by `aria-describedby`. Form-level alerts use `role="alert"`; progress and the
+confirmation use `role="status"`. Nothing relies on colour alone. Works at 375, 768 and
+1440px with DESIGN.md tokens only.
 
 ## Test plan
 
@@ -293,12 +328,18 @@ No organization-owned data is involved, so the cross-organization tests do not a
 | # | Owner | Repo | Paths | Covers | Depends on | Done when (commands) |
 |---|-------|------|-------|--------|------------|----------------------|
 | 1 | Codex | Shipwise | `src/Modules/Shipwise.Identity/**`, `tests/Shipwise.Identity.Tests/**`, `contracts/openapi/**`, `src/BuildingBlocks/Shipwise.AspNetCore/**` (envelope documentation types and Swagger setup only), `src/Gateway/Shipwise.Gateway/**` (Development routes file and its copy rule only), `README.md` | AC-1 to AC-7, AC-12 | - | `scripts/Verify-Platform.ps1 -RequireInfrastructure` passes with no skipped test; `dotnet ef migrations has-pending-model-changes` prints no changes; the idempotent SQL script is in the handoff report |
-| 2 | Codex | Shipwise-Web | `src/lib/api/**`, `src/features/auth/api/**`, `src/features/auth/schemas/**`, `src/features/auth/index.ts`, a stub `src/features/auth/pages/register-page.tsx`, `src/app/router/**`, `vite.config.ts` (development proxy only), `.env.example`, `docs/architecture/api-integration.md` | AC-8 | 1 | `npm run check` passes; generated types committed and unedited |
-| 3 | Gemini | Shipwise-Web | `src/features/auth/components/**`, `src/features/auth/pages/**`, `tests/e2e/**` for this page | AC-9, AC-10, AC-11 | 2 | `npm run check` and `npm run test:e2e` pass; impeccable detect clean or triaged |
+| 2 | Codex | Shipwise-Web | `src/lib/api/**`, `src/features/auth/api/**`, `src/features/auth/schemas/**`, `src/features/auth/index.ts`, a stub `src/features/auth/pages/register-page.tsx`, a stub `src/app/layouts/public-layout.tsx`, `src/app/router/**`, `vite.config.ts` (development proxy only), `.env.example`, `docs/architecture/api-integration.md` | AC-8 | 1 | `npm run check` passes; generated types committed and unedited |
+| 3 | Gemini | Shipwise-Web | `src/features/auth/components/**`, `src/features/auth/pages/**`, `src/app/layouts/public-layout.tsx`, `tests/e2e/**` for this page | AC-9, AC-10, AC-11 | 2 | `npm run check` and `npm run test:e2e` pass; impeccable detect clean or triaged |
 | 4 | Claude Code | both | review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
 
-Task 2 creates the page file as a stub so the route can be registered; from task 3 on that
-file belongs to Gemini.
+Task 2 creates the page and the public layout as stubs so the route can be registered
+outside `AppLayout`; from task 3 on both files belong to Gemini, who may move the wordmark
+into a component shared with `AppLayout` if that avoids duplicating it.
+
+Task 2 also extends the shared HTTP client: today `ApiError` carries only the status code,
+so it cannot expose the error `code`, the field `errors` or the `Retry-After` header that
+AC-8 needs. The spec's API contract is the agreed error contract that
+`docs/architecture/api-integration.md` waits for.
 
 ## Assumptions and open questions
 
