@@ -13,4 +13,9 @@ commit messages. Changes after approval go through the spec's change log, and a 
 `done` only with its delivery record filled in. The surrounding process, including the
 small change lane that needs no spec, is in [docs/workflow.md](../workflow.md).
 
-No specs yet.
+| # | Spec | Status |
+|---|---|---|
+| [0001](0001-user-registration.md) | User registration | draft |
+
+Planned next, not written: 0002 sign-in and sessions, 0003 create an organization, 0004
+invitations and roles.
