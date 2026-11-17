@@ -12,9 +12,12 @@ using Shipwise.Identity.API.Health;
 using Shipwise.Identity.Application.DependencyInjection;
 using Shipwise.Identity.Infrastructure.DependencyInjection;
 
+// A plain logger, not CreateBootstrapLogger(): a reloadable bootstrap logger can be frozen
+// by only one host per process, so hosts started in parallel (tests) fail with
+// "The logger is already frozen". AddConfiguredSerilog builds the host's own logger.
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
-    .CreateBootstrapLogger();
+    .CreateLogger();
 
 try
 {

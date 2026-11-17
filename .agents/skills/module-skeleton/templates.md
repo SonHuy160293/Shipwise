@@ -314,9 +314,12 @@ using Shipwise.Sample.API.Health;
 using Shipwise.Sample.Application.DependencyInjection;
 using Shipwise.Sample.Infrastructure.DependencyInjection;
 
+// A plain logger, not CreateBootstrapLogger(): a reloadable bootstrap logger can be frozen
+// by only one host per process, so hosts started in parallel (tests) fail with
+// "The logger is already frozen". AddConfiguredSerilog builds the host's own logger.
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
-    .CreateBootstrapLogger();
+    .CreateLogger();
 
 try
 {
@@ -633,6 +636,43 @@ public sealed class CreateProbeCommandHandler(SampleDbContext dbContext) : IComm
     }
 }
 #pragma warning restore SA1402
+```
+
+`tests/Shipwise.Sample.Tests/Host/ParallelHostTests.cs`
+
+```csharp
+using System.Net;
+using Xunit;
+
+namespace Shipwise.Sample.Tests.Host;
+
+/// <summary>
+/// Test classes run in parallel, so several API hosts start in one process at the same time.
+/// The host's logging setup must allow that.
+/// </summary>
+public sealed class ParallelHostTests
+{
+    [Fact]
+    public async Task SeveralHostsCanStartAtTheSameTime()
+    {
+        const int hosts = 8;
+        var factories = Enumerable.Range(0, hosts).Select(_ => new SampleApiFactory()).ToArray();
+        try
+        {
+            HttpResponseMessage[] responses = await Task.WhenAll(factories.Select(factory => Task.Run(
+                () => factory.CreateClient().GetAsync("/health/live"))));
+
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
+        }
+        finally
+        {
+            foreach (SampleApiFactory factory in factories)
+            {
+                await factory.DisposeAsync();
+            }
+        }
+    }
+}
 ```
 
 `tests/Shipwise.Sample.Tests/Host/HostTests.cs`

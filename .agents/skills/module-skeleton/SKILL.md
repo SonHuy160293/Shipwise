@@ -137,6 +137,9 @@ Copy the code from [templates.md](templates.md) and replace `Sample` and `sample
     reachable), both `.AllowAnonymous()`, outside `/api`.
   - `UseConfiguredSwagger()` has no environment check of its own: call it only in
     Development.
+  - The startup logger is a plain `CreateLogger()`, never `CreateBootstrapLogger()`. A
+    reloadable bootstrap logger can be frozen by only one host per process, so parallel
+    test hosts fail with "The logger is already frozen" (this broke CI once).
   - Do not register an `IAuthenticatedContextValidator` in a skeleton. Without one every
     token is rejected, which is the correct fail-closed state until the identity model
     exists.
@@ -178,6 +181,8 @@ tokens signed with the test key.
 Required, no database needed:
 - `/health/live` answers 200 without credentials; `/health/ready` answers 503 when the
   database is unreachable.
+- Several hosts start at the same time in one process and all answer (catches shared
+  static state such as the logger).
 - A controller deriving from `ApiController` with no attribute of its own answers 401
   without a token, 403 with a token that lacks the permission, and 200 with it.
 - A query runs through the pipeline; `NotFoundException` becomes 404 with its code.
