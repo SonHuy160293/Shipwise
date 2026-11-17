@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 using Shipwise.Identity.Infrastructure.Persistence.DbContexts;
 using Shipwise.SharedKernel.Abstractions.Persistence;
 using Shipwise.SharedKernel.Abstractions.Shared;
@@ -33,6 +34,11 @@ public sealed class IdentityUnitOfWork(IdentityDbContext dbContext) : IUnitOfWor
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return response;
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgres && ConstraintExceptionMapper.Map(postgres) is not null)
+        {
+            dbContext.ChangeTracker.Clear();
+            throw ConstraintExceptionMapper.Map((PostgresException)exception.InnerException!)!;
         }
         catch
         {

@@ -1,0 +1,16 @@
+{
+  "ReverseProxy": {
+    "Routes": {
+      "register": {
+        "ClusterId": "identity",
+        "Match": { "Path": "/api/v1/auth/register", "Methods": [ "POST" ] },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Transforms": [ { "X-Forwarded": "Set", "Prefix": "Remove" }, { "RequestHeaderRemove": "Forwarded" } ]
+      }
+    },
+    "Clusters": {
+      "identity": { "Destinations": { "identity-api": { "Address": "http://127.0.0.1:19091/" } } }
+    }
+  }
+}

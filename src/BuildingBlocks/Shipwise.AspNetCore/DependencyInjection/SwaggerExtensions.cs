@@ -3,6 +3,7 @@ using Asp.Versioning.ApiExplorer;
 using Shipwise.AspNetCore.Controllers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
@@ -31,11 +32,11 @@ public static class SwaggerExtensions
         return services;
     }
 
-    public static IServiceCollection AddConfiguredSwagger(this IServiceCollection services)
+    public static IServiceCollection AddConfiguredSwagger(this IServiceCollection services, string title = "Company.Project API")
     {
         services.Configure<ApiDocumentationOptions>(options =>
         {
-            options.Title = "Company.Project API";
+            options.Title = title;
             options.Description = "Clean Architecture + self-made CQRS sender sample API";
         });
 
@@ -43,6 +44,8 @@ public static class SwaggerExtensions
         services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
         services.AddSwaggerGen(options =>
         {
+            options.SupportNonNullableReferenceTypes();
+            options.NonNullableReferenceTypesAsRequired();
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Type = SecuritySchemeType.Http,
@@ -60,6 +63,7 @@ public static class SwaggerExtensions
             });
 
             options.OperationFilter<IntegrationApiKeyHeaderOperationFilter>();
+            options.OperationFilter<AnonymousOperationFilter>();
 
             options.TagActionsBy(apiDescription =>
             {
@@ -113,6 +117,17 @@ public static class SwaggerExtensions
         };
 }
 
+internal sealed class AnonymousOperationFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        if (context.ApiDescription.ActionDescriptor.EndpointMetadata?.OfType<IAllowAnonymous>().Any() == true)
+        {
+            operation.Security = [];
+        }
+    }
+}
+
 internal sealed class ApiDocumentationOptions
 {
     public string Title { get; set; } = string.Empty;
@@ -144,7 +159,9 @@ internal sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOpti
             });
         }
 
-        options.CustomSchemaIds(type => type.ToString().Replace("+", ".", StringComparison.Ordinal));
+        options.CustomSchemaIds(type => type.IsGenericType
+            ? type.Name[..type.Name.IndexOf('`')] + "Of" + string.Join("And", type.GetGenericArguments().Select(argument => argument.Name))
+            : type.Name);
     }
 }
 
@@ -237,7 +254,7 @@ internal sealed class SortSwaggerDocumentFilter : IDocumentFilter
 
         foreach (var path in sortedPaths)
         {
-            paths.Add(path.Key, path.Value);
+            paths.Add(path.Key.ToLowerInvariant(), path.Value);
         }
 
         swaggerDoc.Paths = paths;

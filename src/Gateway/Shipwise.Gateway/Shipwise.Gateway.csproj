@@ -7,5 +7,6 @@
     <ProjectReference Include="../../BuildingBlocks/Shipwise.AspNetCore/Shipwise.AspNetCore.csproj" />
     <ProjectReference Include="../../BuildingBlocks/Shipwise.Observability/Shipwise.Observability.csproj" />
     <Content Update="proxy.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="proxy.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

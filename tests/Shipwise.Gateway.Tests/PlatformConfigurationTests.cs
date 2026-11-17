@@ -48,6 +48,7 @@ public sealed class PlatformConfigurationTests
         builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["Gateway:RoutesFile"] = "proxy.json",
             ["ForwardedHeaders:KnownProxies:0"] = "127.0.0.1",
             ["AllowedHosts"] = "localhost;127.0.0.1",
             ["Cors:AllowedOrigins:0"] = "https://frontend.test",

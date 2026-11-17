@@ -81,13 +81,14 @@ the email verification spec.
     one answers 201 and the other answers 409 `Registration.EmailTaken`; neither answers
     500, and one account exists.
   - AC-6: Given one client has sent 5 registration requests within a minute, when it sends
-    another, then the API answers 429 with code `Request.TooManyRequests` and a
+    another while registration is enabled, then the API answers 429 with code `Request.TooManyRequests` and a
     `Retry-After` header, and no account is created.
   - AC-7: The endpoint needs no token, and a successful registration issues no token,
     cookie or session; the response contains only the user id.
   - AC-12: Given the setting `Registration:Enabled` is false or missing, when anyone sends
     a registration request, then the API answers 404 with code `Request.NotFound` and
-    creates nothing. The setting is true in `appsettings.Development.json` and absent from
+    creates nothing. This takes precedence over rate limiting, including after five requests.
+    The setting is true in `appsettings.Development.json` and absent from
     `appsettings.json`, so registration is closed everywhere else until the owner opens it.
 - US-2: As a visitor, I can use a registration page that tells me clearly what is wrong or
   that my account was created.
@@ -327,7 +328,7 @@ No organization-owned data is involved, so the cross-organization tests do not a
 
 | # | Owner | Repo | Paths | Covers | Depends on | Done when (commands) |
 |---|-------|------|-------|--------|------------|----------------------|
-| 1 | Codex | Shipwise | `src/Modules/Shipwise.Identity/**`, `tests/Shipwise.Identity.Tests/**`, `contracts/openapi/**`, `src/BuildingBlocks/Shipwise.AspNetCore/**` (envelope documentation types and Swagger setup only), `src/Gateway/Shipwise.Gateway/**` (Development routes file and its copy rule only), `README.md` | AC-1 to AC-7, AC-12 | - | `scripts/Verify-Platform.ps1 -RequireInfrastructure` passes with no skipped test; `dotnet ef migrations has-pending-model-changes` prints no changes; the idempotent SQL script is in the handoff report |
+| 1 | Codex | Shipwise | `src/Modules/Shipwise.Identity/**`, `tests/Shipwise.Identity.Tests/**`, `tests/Shipwise.Gateway.Tests/PlatformConfigurationTests.cs` (select empty routing explicitly), `contracts/openapi/**`, `src/BuildingBlocks/Shipwise.AspNetCore/**` (envelope documentation types and Swagger setup only), `src/Gateway/Shipwise.Gateway/**` (Development routes file, its copy rule and `appsettings.Development.json` route selection only), `README.md` | AC-1 to AC-7, AC-12 | - | `scripts/Verify-Platform.ps1 -RequireInfrastructure` passes with no skipped test; `dotnet ef migrations has-pending-model-changes` prints no changes; the idempotent SQL script is in the handoff report |
 | 2 | Codex | Shipwise-Web | `src/lib/api/**`, `src/features/auth/api/**`, `src/features/auth/schemas/**`, `src/features/auth/index.ts`, a stub `src/features/auth/pages/register-page.tsx`, a stub `src/app/layouts/public-layout.tsx`, `src/app/router/**`, `vite.config.ts` (development proxy only), `.env.example`, `docs/architecture/api-integration.md` | AC-8 | 1 | `npm run check` passes; generated types committed and unedited |
 | 3 | Gemini | Shipwise-Web | `src/features/auth/components/**`, `src/features/auth/pages/**`, `src/app/layouts/public-layout.tsx`, `tests/e2e/**` for this page | AC-9, AC-10, AC-11 | 2 | `npm run check` and `npm run test:e2e` pass; impeccable detect clean or triaged |
 | 4 | Claude Code | both | review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
@@ -364,7 +365,9 @@ No open questions.
 
 ## Change log
 
-Empty until the spec is approved.
+- 2026-11-17: Owner approved adding Gateway `appsettings.Development.json` route selection to Task 1's owned paths; this implements the existing Development routing design without changing the API contract or behavior.
+- 2026-11-17: Owner confirmed that disabled registration always returns 404, taking precedence over rate limiting; AC-6 applies when registration is enabled.
+- 2026-11-17: Owner approved adding `tests/Shipwise.Gateway.Tests/PlatformConfigurationTests.cs` to Task 1, to select empty routing explicitly when testing empty-route behavior.
 
 ## Delivery record
 

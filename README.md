@@ -7,9 +7,9 @@ tests and product documents were not imported.
 
 The solution contains six BuildingBlocks (SharedKernel, AspNetCore,
 EntityFrameworkCore, Messaging, Observability and Utilities), an optional YARP
-Gateway, the Identity module skeleton, and four test projects. See
-[ARCHITECTURE.md](ARCHITECTURE.md). There is no business API, token issuer or business
-table yet: the Identity module is an empty, running shell.
+Gateway, the Identity module, and four test projects. See
+[ARCHITECTURE.md](ARCHITECTURE.md). Identity provides account registration; it does
+not yet issue tokens or sessions.
 
 ## Build and verify
 
@@ -35,21 +35,26 @@ enabled; the imported source includes existing style/analyzer warnings.
 dotnet run --project src/Gateway/Shipwise.Gateway --no-launch-profile -- --environment Development --urls http://127.0.0.1:19090
 ```
 
-The shipped route file is empty. In Development, `Gateway:AllowEmptyConfiguration`
-permits startup: `/health/live` returns 200, `/health/ready` returns 503, and business
-paths return 404. Test routes exist only in test fixtures. Configure actual upstreams
-before readiness can pass. Production rejects empty routing even with the flag set;
+The default route file is empty. Development selects `proxy.Development.json`, which
+forwards registration to the Identity API. Readiness verifies route configuration,
+not upstream availability. Selecting the empty route file in Development with
+`Gateway:AllowEmptyConfiguration` enabled gives a live but not ready Gateway.
+Production rejects empty routing even with the flag set;
 it also requires explicit trusted ingress proxies, allowed hosts and HTTPS CORS origins.
 
 Route `Metadata:CacheControl` can be set to `no-store` for private responses. JWT
 helpers retain signature/lifetime validation and require an authoritative
 `IAuthenticatedContextValidator`; a missing validator rejects every token.
 
-## Run the Identity module skeleton
+## Run the Identity module
 
 `src/Modules/Shipwise.Identity` holds five projects (Domain, Application, Infrastructure,
-API, MigrationRunner). It has no entity, migration or endpoint; it exposes only
-`/health/live` and `/health/ready`, and Swagger in Development.
+API, MigrationRunner). It exposes `/health/live`, `/health/ready` and the public
+`POST /api/v1/auth/register` endpoint. Swagger is available in Development. Registration
+is enabled in Development and disabled by default elsewhere. Set `Registration:Enabled`
+only when registration should be available. Disabled registration returns 404 before
+rate limiting; enabled registration is limited to five requests per minute per client IP.
+The Development Gateway forwards the registration route to the Identity API on port 19091.
 
 The API does not start without these settings. Keep the secrets in user secrets locally,
 or as files under `SHIPWISE_CONFIG_SECRETS_DIRECTORY` (default `/run/secrets/config`) when
@@ -81,7 +86,9 @@ dotnet run --project $api --launch-profile Local    # http://localhost:19091
 The MigrationRunner reads its connection string from the environment or the command
 line, exits with 0 on success and 1 on failure, and is the only thing that applies
 migrations. No token is accepted yet: there is no `IAuthenticatedContextValidator`, so
-every protected endpoint answers 401 by design.
+every protected endpoint answers 401 by design. The HTTP contract is generated at
+`contracts/openapi/shipwise.v1.json`. To regenerate it after an approved contract change,
+set `SHIPWISE_UPDATE_CONTRACT=1` and run the `OpenApiContractTests` test.
 
 ## Local Docker profiles
 
