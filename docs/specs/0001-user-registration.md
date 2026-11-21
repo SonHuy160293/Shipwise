@@ -368,6 +368,10 @@ No open questions.
 - 2026-11-17: Owner approved adding Gateway `appsettings.Development.json` route selection to Task 1's owned paths; this implements the existing Development routing design without changing the API contract or behavior.
 - 2026-11-17: Owner confirmed that disabled registration always returns 404, taking precedence over rate limiting; AC-6 applies when registration is enabled.
 - 2026-11-17: Owner approved adding `tests/Shipwise.Gateway.Tests/PlatformConfigurationTests.cs` to Task 1, to select empty routing explicitly when testing empty-route behavior.
+- 2026-11-21: Owner approved a one-file exception for Task 3: `src/app/router/register-route.test.tsx`
+  (written by Task 2 for the stub page) is updated to render the real form inside a
+  `QueryClientProvider` and assert the "Create account" button is present. No router code
+  changes.
 
 ## Delivery record
 
