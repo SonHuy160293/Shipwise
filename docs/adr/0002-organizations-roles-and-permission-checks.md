@@ -88,7 +88,7 @@ The owner chose C. The decision stands; this note is kept so reviewers know it w
   organization-scoped endpoint adds an organization-aware check (organization id from the
   route, role from the membership claim) and updates the cqrs-api skill section 5.
   `TenantIds` and `BranchIds` stay unused.
-- The sessions ADR (due with spec 0002) must define the membership claim's exact name and
+- The sessions ADR (due with the sign-in spec) must define the membership claim's exact name and
   shape, the access token lifetime, the refresh flow, and the mechanism in decision 7.
 - The token grows by roughly 50 bytes per organization. Dozens are fine; a user in
   hundreds of organizations would exceed common header limits, so the sessions ADR sets a

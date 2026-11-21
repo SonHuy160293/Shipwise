@@ -15,7 +15,8 @@ small change lane that needs no spec, is in [docs/workflow.md](../workflow.md).
 
 | # | Spec | Status |
 |---|---|---|
-| [0001](0001-user-registration.md) | User registration | draft |
+| [0001](0001-user-registration.md) | User registration | approved |
+| [0002](0002-containers-and-local-stack.md) | Containers and the local stack | approved |
 
-Planned next, not written: 0002 sign-in and sessions, 0003 create an organization, 0004
+Planned next, not written: 0003 sign-in and sessions, 0004 create an organization, 0005
 invitations and roles.

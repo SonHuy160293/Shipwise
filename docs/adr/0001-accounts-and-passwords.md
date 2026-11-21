@@ -49,7 +49,7 @@ Option A.
 
 Sessions and tokens (who issues them, lifetime, refresh, how the browser holds them, and
 the `IAuthenticatedContextValidator` implementation) are decided in a separate ADR with
-spec 0002.
+the sign-in spec.
 
 ## Consequences
 

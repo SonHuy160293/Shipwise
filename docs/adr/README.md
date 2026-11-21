@@ -12,9 +12,10 @@ becomes `superseded by NNNN`.
 | [0001](0001-accounts-and-passwords.md) | Accounts and passwords are owned by Shipwise | accepted |
 | [0002](0002-organizations-roles-and-permission-checks.md) | Organizations, fixed roles, and the role per organization carried in the token | accepted |
 | [0003](0003-api-contract-workflow.md) | API contract: generated from the API host and checked by a test | accepted |
+| [0004](0004-deployment-and-configuration-model.md) | Deployment and configuration model | accepted |
 
 Pending decisions:
 - Sessions and tokens: who issues them, lifetime and refresh, how the browser holds them,
   the membership claim, how a removed member's token stops working, and the
-  `IAuthenticatedContextValidator` implementation. Due with spec 0002 (sign-in).
+  `IAuthenticatedContextValidator` implementation. Due with the sign-in spec.
 - Email sending and verification. Due before any invitation feature.

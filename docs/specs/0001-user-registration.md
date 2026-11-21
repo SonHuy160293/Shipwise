@@ -23,7 +23,7 @@ In scope
 - A local development route so the frontend can reach the Identity API through the Gateway.
 
 Out of scope (each is a later spec)
-- Sign-in, sign-out, sessions, tokens, "who am I" (spec 0002).
+- Sign-in, sign-out, sessions, tokens, "who am I" (the sign-in spec).
 - Email verification, password reset, changing email or password.
 - Organizations, memberships, roles, invitations.
 - Account deletion, profile editing, avatars, locale and time zone.
@@ -238,7 +238,7 @@ Check constraints: none.
 |---|---|---|
 | Registration checks whether a user exists for a normalized email | Every registration | UX_Users_NormalizedEmail |
 | Uniqueness of the normalized email at insert | Every registration | UX_Users_NormalizedEmail |
-| Sign-in loads a user's credential by user id (spec 0002) | Every sign-in | UX_PasswordCredentials_UserId |
+| Sign-in loads a user's credential by user id (the sign-in spec) | Every sign-in | UX_PasswordCredentials_UserId |
 
 ### Data lifecycle
 
@@ -293,7 +293,7 @@ strength meter. The submit button reads "Create account".
 | Success (201) | The form is replaced by "Account created" and "Your account for <email> is ready. You have not been signed in." | The confirmation heading |
 
 The confirmation offers no action. The proposal's "Register another account" button is left
-out by the owner's decision (2026-11-17): it invites duplicate accounts, and spec 0002 adds
+out by the owner's decision (2026-11-17): it invites duplicate accounts, and the sign-in spec adds
 a "Sign in" link here instead. Permission-denied does not apply: the endpoint is public.
 After success the password is cleared from memory; no token, cookie or session is stored.
 
@@ -372,6 +372,8 @@ No open questions.
   (written by Task 2 for the stub page) is updated to render the real form inside a
   `QueryClientProvider` and assert the "Create account" button is present. No router code
   changes.
+- 2026-11-21: References to "spec 0002" for sign-in now say "the sign-in spec", because
+  spec 0002 became containers and the local stack. No behavior changes.
 
 ## Delivery record
 
