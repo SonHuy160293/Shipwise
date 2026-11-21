@@ -37,11 +37,20 @@ public static class ServiceCollectionExtensions
 
         // PostgreSQL error details can contain email addresses or password hashes.
         var safeConnection = new NpgsqlConnectionStringBuilder(connectionString) { IncludeErrorDetail = false };
+        string databaseConnection = safeConnection.ConnectionString;
+        if (configuration["Database:PasswordFile"] is string passwordFile)
+        {
+            safeConnection.Remove("Password");
+
+            // Explicit quoting preserves a remaining trailing LF across connection-string parsing.
+            string escapedPassword = ReadPasswordFile(passwordFile).Replace("\"", "\"\"", StringComparison.Ordinal);
+            databaseConnection = $"{safeConnection.ConnectionString};Password=\"{escapedPassword}\"";
+        }
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<AuditSaveChangesInterceptor>();
         services.AddDbContext<IdentityDbContext>((serviceProvider, options) => options
-            .UseNpgsql(safeConnection.ConnectionString, npgsql => npgsql
+            .UseNpgsql(databaseConnection, npgsql => npgsql
                 .MigrationsHistoryTable("__EFMigrationsHistory", IdentityDbContext.Schema)
                 .MigrationsAssembly(typeof(IdentityDbContext).Assembly.GetName().Name))
             .AddInterceptors(serviceProvider.GetRequiredService<AuditSaveChangesInterceptor>()));
@@ -51,4 +60,21 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddUnitOfWork(this IServiceCollection services)
         => services.AddScoped<IUnitOfWork, IdentityUnitOfWork>();
+
+    private static string ReadPasswordFile(string path)
+    {
+        string password = File.ReadAllText(path);
+        if (password.EndsWith("\r\n", StringComparison.Ordinal))
+        {
+            password = password[..^2];
+        }
+        else if (password.EndsWith('\n') || password.EndsWith('\r'))
+        {
+            password = password[..^1];
+        }
+
+        return password.Length == 0
+            ? throw new InvalidOperationException("Database:PasswordFile contains an empty password.")
+            : password;
+    }
 }
