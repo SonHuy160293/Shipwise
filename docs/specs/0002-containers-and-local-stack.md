@@ -234,6 +234,12 @@ No UI changes.
 
 Task 1 is a short proof with no commit; tasks 2 to 5 run in order.
 
+Task 3 must also: on Linux, have `init` give each secret file to the user that reads it
+(UID 1654; `postgres-admin-password` to UID 999) with mode 0400, using `sudo` when the
+current user cannot change ownership. Task 1 showed Docker Desktop makes mounted secrets
+readable by anyone, but a Linux host and GitHub's Linux runner keep the real owner and
+mode, so without this the API cannot read its secrets and the CI smoke test fails.
+
 ## Assumptions and open questions
 
 Decided by the owner on 2026-11-21: one Linux host with Docker Compose as the production
@@ -253,7 +259,11 @@ No open questions.
 
 ## Change log
 
-Empty until the spec is approved.
+- 2026-11-21: Task 1 passed both proofs on Docker Desktop (compose secrets read by UID
+  1654 through key-per-file; default privileges covering a later schema, with `CREATE`
+  denied to `identity_api`). Owner approved adding the Linux secret-ownership rule to
+  task 3. Accepted: default privileges also let `identity_api` write
+  `__EFMigrationsHistory`; closing that would need a grants step after every migration.
 
 ## Delivery record
 
