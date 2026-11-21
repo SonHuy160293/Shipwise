@@ -1,0 +1,131 @@
+name: ${SHIPWISE_STACK:?Set SHIPWISE_STACK}
+
+x-runtime: &runtime
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: ["/tmp:rw,nosuid,nodev,noexec,mode=1777"]
+  init: true
+  restart: unless-stopped
+  mem_limit: 512m
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
+x-http-health: &http-health
+  test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:8080/health/ready"]
+  interval: 3s
+  timeout: 5s
+  retries: 20
+
+services:
+  postgres:
+    <<: *runtime
+    image: ${SHIPWISE_POSTGRES_IMAGE:?Set SHIPWISE_POSTGRES_IMAGE}
+    user: "999:999"
+    mem_limit: 768m
+    environment:
+      POSTGRES_USER: shipwise_admin
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-admin-password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets: [postgres-admin-password]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,mode=1777
+      - /var/run/postgresql:rw,nosuid,nodev,noexec,uid=999,gid=999,mode=0770
+    volumes: ["postgres-data:/var/lib/postgresql"]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "shipwise_admin", "-d", "postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  db-bootstrap:
+    <<: *runtime
+    image: ${SHIPWISE_POSTGRES_IMAGE:?Set SHIPWISE_POSTGRES_IMAGE}
+    # This short-lived job alone reads 0400 files owned by two different UIDs.
+    user: "0:0"
+    cap_add: [DAC_READ_SEARCH]
+    restart: "no"
+    mem_limit: 256m
+    entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
+    environment: {PGHOST: postgres}
+    secrets: [postgres-admin-password, identity-migrator-password, identity-api-password]
+    volumes:
+      - ./bootstrap.sh:/bootstrap/bootstrap.sh:ro
+      - ./bootstrap.sql:/bootstrap/bootstrap.sql:ro
+    depends_on: {postgres: {condition: service_healthy}}
+    networks: [backend]
+
+  identity-migration:
+    <<: *runtime
+    image: ${SHIPWISE_IDENTITY_MIGRATION_IMAGE:?Set SHIPWISE_IDENTITY_MIGRATION_IMAGE}
+    restart: "no"
+    mem_limit: 256m
+    environment:
+      DOTNET_ENVIRONMENT: ${SHIPWISE_ENVIRONMENT:?Set SHIPWISE_ENVIRONMENT}
+      ConnectionStrings__ApplicationDb: Host=postgres;Database=shipwise_identity;Username=identity_migrator;Include Error Detail=false
+      Database__PasswordFile: /run/secrets/identity-migrator-password
+    secrets: [identity-migrator-password]
+    depends_on: {db-bootstrap: {condition: service_completed_successfully}}
+    networks: [backend]
+
+  identity-api:
+    <<: *runtime
+    image: ${SHIPWISE_IDENTITY_API_IMAGE:?Set SHIPWISE_IDENTITY_API_IMAGE}
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${SHIPWISE_ENVIRONMENT:?Set SHIPWISE_ENVIRONMENT}
+      ConnectionStrings__ApplicationDb: Host=postgres;Database=shipwise_identity;Username=identity_api;Include Error Detail=false
+      Database__PasswordFile: /run/secrets/identity-api-password
+      Jwt__Issuer: ${SHIPWISE_JWT_ISSUER:?Set SHIPWISE_JWT_ISSUER}
+      Jwt__Audience: ${SHIPWISE_JWT_AUDIENCE:?Set SHIPWISE_JWT_AUDIENCE}
+      Jwt__AccessTokenExpirationMinutes: "15"
+      ForwardedHeaders__KnownNetworks__0: ${SHIPWISE_HTTP_NETWORK:?Set SHIPWISE_HTTP_NETWORK}
+      AllowedHosts: "localhost;127.0.0.1;identity-api;${SHIPWISE_GATEWAY_PUBLIC_HOST:?Set SHIPWISE_GATEWAY_PUBLIC_HOST}"
+      Cors__AllowedOrigins__0: ${SHIPWISE_FRONTEND_ORIGIN:?Set SHIPWISE_FRONTEND_ORIGIN}
+    secrets:
+      - identity-api-password
+      - {source: identity-jwt-key, target: /run/secrets/config/Jwt__SecretKey}
+      - {source: identity-integration-key, target: /run/secrets/config/IntegrationApi__ApiKeys__0}
+    depends_on: {identity-migration: {condition: service_completed_successfully}}
+    networks: [backend, http]
+    healthcheck: *http-health
+
+  gateway:
+    <<: *runtime
+    image: ${SHIPWISE_GATEWAY_IMAGE:?Set SHIPWISE_GATEWAY_IMAGE}
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${SHIPWISE_ENVIRONMENT:?Set SHIPWISE_ENVIRONMENT}
+      Gateway__RoutesFile: proxy.Development.json
+      ReverseProxy__Clusters__identity__Destinations__identity-api__Address: http://identity-api:8080/
+      AllowedHosts: "localhost;127.0.0.1;${SHIPWISE_GATEWAY_PUBLIC_HOST:?Set SHIPWISE_GATEWAY_PUBLIC_HOST}"
+      Cors__AllowedOrigins__0: ${SHIPWISE_FRONTEND_ORIGIN:?Set SHIPWISE_FRONTEND_ORIGIN}
+      ForwardedHeaders__KnownNetworks__0: ${SHIPWISE_HTTP_NETWORK:?Set SHIPWISE_HTTP_NETWORK}
+      ForwardedHeaders__KnownProxies__0: ${SHIPWISE_INGRESS_PROXY_IP:-}
+    ports: ["127.0.0.1:${SHIPWISE_GATEWAY_PORT:?Set SHIPWISE_GATEWAY_PORT}:8080"]
+    depends_on: {identity-api: {condition: service_healthy}}
+    networks: [http]
+    healthcheck: *http-health
+
+networks:
+  backend: {}
+  http:
+    ipam:
+      config:
+        - subnet: ${SHIPWISE_HTTP_NETWORK:?Set SHIPWISE_HTTP_NETWORK}
+
+volumes:
+  postgres-data: {}
+
+secrets:
+  postgres-admin-password:
+    file: ${SHIPWISE_SECRETS_DIR:?Set SHIPWISE_SECRETS_DIR}/postgres-admin-password
+  identity-migrator-password:
+    file: ${SHIPWISE_SECRETS_DIR:?Set SHIPWISE_SECRETS_DIR}/identity-migrator-password
+  identity-api-password:
+    file: ${SHIPWISE_SECRETS_DIR:?Set SHIPWISE_SECRETS_DIR}/identity-api-password
+  identity-jwt-key:
+    file: ${SHIPWISE_SECRETS_DIR:?Set SHIPWISE_SECRETS_DIR}/identity-jwt-key
+  identity-integration-key:
+    file: ${SHIPWISE_SECRETS_DIR:?Set SHIPWISE_SECRETS_DIR}/identity-integration-key

@@ -1,0 +1,20 @@
+x-build: &build
+  context: ../..
+  args:
+    DOTNET_SDK_IMAGE: ${SHIPWISE_DOTNET_SDK_IMAGE:?Set SHIPWISE_DOTNET_SDK_IMAGE}
+    DOTNET_RUNTIME_IMAGE: ${SHIPWISE_DOTNET_RUNTIME_IMAGE:?Set SHIPWISE_DOTNET_RUNTIME_IMAGE}
+services:
+  postgres:
+    ports: ["127.0.0.1:${SHIPWISE_POSTGRES_PORT:?Set SHIPWISE_POSTGRES_PORT}:5432"]
+  identity-migration:
+    build: {<<: *build, target: identity-migration}
+    environment: {DOTNET_ENVIRONMENT: Development}
+  identity-api:
+    build: {<<: *build, target: identity-api}
+    ports: ["127.0.0.1:${SHIPWISE_IDENTITY_API_PORT:?Set SHIPWISE_IDENTITY_API_PORT}:8080"]
+    environment: {ASPNETCORE_ENVIRONMENT: Development}
+  gateway:
+    build: {<<: *build, target: gateway}
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ForwardedHeaders__KnownProxies__0: !reset null

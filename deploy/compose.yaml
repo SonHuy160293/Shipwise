@@ -1,24 +1,5 @@
 name: shipwise
 services:
-  gateway:
-    profiles: [gateway]
-    build: {context: .., dockerfile: Dockerfile}
-    image: shipwise-gateway:local
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_HTTP_PORTS: "8080"
-      Observability__Enabled: ${SHIPWISE_OBSERVABILITY_ENABLED:-false}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-    ports: ["127.0.0.1:19090:8080"]
-    healthcheck:
-      test: [CMD, curl, --fail, --silent, http://localhost:8080/health/live]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    read_only: true
-    tmpfs: [/tmp]
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
   postgres:
     profiles: [infrastructure]
     image: postgres:18-bookworm
