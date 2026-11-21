@@ -6,8 +6,7 @@
 **/TestResults/
 **/coverage/
 artifacts/
-deploy/env/*.env
-deploy/secrets/
+deploy/
 **/.env
 **/*.env
 **/appsettings.Local.json
