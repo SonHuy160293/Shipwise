@@ -157,12 +157,18 @@ Passwords are 32 random bytes as hex; keys are 32 random bytes as Base64. On a s
 files are owned by UID 1654 (PostgreSQL's by UID 999) with mode 0400.
 
 **Environment templates** (`deploy/env/*.env.example`, literal `KEY=value`, no secrets):
-`SHIPWISE_STACK`, `SHIPWISE_ENVIRONMENT`, `SHIPWISE_SECRETS_DIR`, the three image
-references, the two base images and the PostgreSQL image (all digest-pinned),
+`SHIPWISE_STACK`, `SHIPWISE_ENVIRONMENT`, `SHIPWISE_SECRETS_DIR`, the three application
+image references, the two .NET base images and the PostgreSQL image,
 `SHIPWISE_GATEWAY_PORT`, `SHIPWISE_IDENTITY_API_PORT`, `SHIPWISE_POSTGRES_PORT`,
 `SHIPWISE_GATEWAY_PUBLIC_HOST`, `SHIPWISE_FRONTEND_ORIGIN`, `SHIPWISE_JWT_ISSUER`,
-`SHIPWISE_JWT_AUDIENCE`, `SHIPWISE_HTTP_NETWORK` (CIDR). The server template uses
-`REPLACE_WITH_...` placeholders and registry image tags.
+`SHIPWISE_JWT_AUDIENCE`, `SHIPWISE_HTTP_NETWORK` (CIDR).
+- Base images (.NET SDK, .NET runtime, PostgreSQL) are pinned by digest in both templates.
+- Locally built application images are tagged `shipwise-<target>:local`; a build output
+  cannot be named by a digest.
+- The server template uses `REPLACE_WITH_...` placeholders, refers to application images
+  in the registry by commit tag or digest (never `latest`), and adds
+  `SHIPWISE_INGRESS_PROXY_IP`, mapped to the Gateway's `ForwardedHeaders__KnownProxies__0`:
+  in Production the Gateway refuses to start without an explicit ingress proxy address.
 
 **Wrapper** `scripts/shipwise.ps1` (PowerShell 7) replaces the current one:
 - `init`, `check`, `up` (runs `check` first, builds locally), `down` (keeps volumes),
@@ -264,6 +270,12 @@ No open questions.
   denied to `identity_api`). Owner approved adding the Linux secret-ownership rule to
   task 3. Accepted: default privileges also let `identity_api` write
   `__EFMigrationsHistory`; closing that would need a grants step after every migration.
+- 2026-11-21: Owner approved two task 3 decision requests from Codex. (1) Locally built
+  application images are tagged `shipwise-<target>:local`, because Buildx rejects a digest
+  as a build output name; base images and server image references stay pinned. (2) The
+  server template adds `SHIPWISE_INGRESS_PROXY_IP` for the Gateway's existing Production
+  rule. Follow-up, outside this spec: let the Gateway trust an ingress network range
+  (CIDR) like the API, so the server does not depend on Docker's bridge address.
 
 ## Delivery record
 
