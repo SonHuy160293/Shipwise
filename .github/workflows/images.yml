@@ -1,0 +1,244 @@
+name: Images
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [gateway, identity-api, identity-migration]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Set the immutable image tag
+        env:
+          TARGET: ${{ matrix.target }}
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/shipwise-${TARGET}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          tags: ${{ env.IMAGE }}
+          load: true
+          cache-from: type=gha,scope=shipwise-${{ matrix.target }}
+          cache-to: type=gha,scope=shipwise-${{ matrix.target }},mode=max
+      - name: Scan the locally built image for fixable critical vulnerabilities
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: docker:${{ env.IMAGE }}
+          only-fixed: true
+          severity-cutoff: critical
+          fail-build: true
+          output-format: table
+      - name: Publish the scanned image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: deploy/compose/compose.yaml:deploy/compose/compose.local.yaml
+      COMPOSE_PROJECT_NAME: shipwise-local
+      COMPOSE_ENV_FILES: deploy/env/local.env.example
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check external Dockerfile stages and deployment base images are digest-pinned
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import shlex
+          from string import Template
+
+          def pinned(reference):
+              if not re.fullmatch(r'[^@\s]+@sha256:[a-f0-9]{64}', reference):
+                  raise SystemExit(f'Missing image digest on {reference}')
+
+          args, stages = {}, set()
+          for line in Path('Dockerfile').read_text().splitlines():
+              if line.upper().startswith('ARG '):
+                  key, _, value = line.split(None, 1)[1].partition('=')
+                  args[key] = value
+              if line.upper().startswith('FROM '):
+                  words = shlex.split(line)
+                  base = next(word for word in words[1:] if not word.startswith('--'))
+                  if base not in stages:
+                      pinned(Template(base).substitute(args))
+                  if words[-2].upper() == 'AS':
+                      stages.add(words[-1])
+          for template in ('local', 'server'):
+              lines = Path(f'deploy/env/{template}.env.example').read_text().splitlines()
+              settings = dict(line.split('=', 1) for line in lines if line.startswith('SHIPWISE_'))
+              for image in ('DOTNET_SDK', 'DOTNET_RUNTIME', 'POSTGRES'):
+                  pinned(settings[f'SHIPWISE_{image}_IMAGE'])
+      - name: Initialize twice and check configuration errors
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import socket
+          import subprocess as sp
+
+          stack = ['pwsh', '-NoProfile', '-File', 'scripts/shipwise.ps1']
+          def run(action):
+              return sp.run([*stack, action, '-Environment', 'local'], stdout=sp.PIPE, stderr=sp.STDOUT)
+
+          run('init').check_returncode()
+          config = Path('deploy/env/local.env')
+          original = config.read_bytes()
+          files = sorted(Path('deploy/secrets/shipwise-local').iterdir())
+          if not files:
+              raise SystemExit('init did not generate secrets')
+          secrets = [sp.check_output(['sudo', '-n', 'cat', '--', path]) for path in files]
+          manifest = Path(os.environ['RUNNER_TEMP']) / 'shipwise.sha256'
+          manifest.write_bytes(sp.check_output(['sudo', '-n', 'sha256sum', config, *files]))
+          run('init').check_returncode()
+          sp.run(['sudo', '-n', 'sha256sum', '--check', '--status', manifest], check=True)
+
+          def reject(problem):
+              result = run('check')
+              if any(value in result.stdout for value in secrets):
+                  raise SystemExit('check disclosed a generated secret')
+              if not result.returncode or problem.encode() not in result.stdout:
+                  raise SystemExit(f'check did not diagnose {problem}')
+
+          try:
+              config.write_bytes(b''.join(line for line in original.splitlines(True)
+                                          if not line.startswith(b'SHIPWISE_JWT_ISSUER=')))
+              reject('SHIPWISE_JWT_ISSUER')
+          finally:
+              config.write_bytes(original)
+          secret = files[0]
+          saved = secret.with_suffix('.saved')
+          secret.rename(saved)
+          try:
+              reject(secret.name)
+              secret.touch()
+              reject(secret.name)
+          finally:
+              saved.replace(secret)
+          with socket.socket() as listener:
+              listener.bind(('127.0.0.1', 19090))
+              listener.listen()
+              reject('SHIPWISE_GATEWAY_PORT')
+          run('check').check_returncode()
+
+      - name: Verify readiness, registration, persistence and secret handling
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          import secrets
+          import subprocess as sp
+          import time
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          files = Path('deploy/secrets/shipwise-local').iterdir()
+          values = [sp.check_output(['sudo', '-n', 'cat', '--', p]) for p in files]
+          def checked(args, **kwargs):
+              result = sp.run(args, stdout=sp.PIPE, stderr=sp.STDOUT, **kwargs)
+              if any(value in result.stdout for value in values):
+                  raise SystemExit(f'Generated secret found in {args[0]} {args[1]} output')
+              result.check_returncode()
+              return result.stdout
+
+          def stack(action):
+              checked(['pwsh', '-NoProfile', '-File', 'scripts/shipwise.ps1', action, '-Environment', 'local'])
+
+          def wait_ready(port):
+              deadline = time.monotonic() + 60
+              while time.monotonic() < deadline:
+                  try:
+                      with urlopen(f'http://127.0.0.1:{port}/health/ready', timeout=3) as response:
+                          if response.status == 200:
+                              return
+                  except (URLError, TimeoutError):
+                      pass
+                  time.sleep(1)
+              raise SystemExit(f'Readiness timed out on port {port}')
+
+          account = {'email': 'ci@example.invalid', 'displayName': 'CI smoke', 'password': secrets.token_urlsafe(24)}
+          def register(expected):
+              request = Request('http://127.0.0.1:19090/api/v1/auth/register', data=json.dumps(account).encode(),
+                                headers={'Content-Type': 'application/json'})
+              try:
+                  with urlopen(request, timeout=15) as response:
+                      status = response.status
+              except HTTPError as error:
+                  status = error.code
+              if status != expected:
+                  raise SystemExit(f'Gateway registration returned {status}, expected {expected}')
+              print(f'Gateway registration returned {status}', flush=True)
+
+          services = {'postgres', 'db-bootstrap', 'identity-migration', 'identity-api', 'gateway'}
+          def audit():
+              ids = checked(['docker', 'compose', 'ps', '--all', '--quiet']).decode().split()
+              if not ids:
+                  raise SystemExit('No containers found to inspect')
+              containers = json.loads(checked(['docker', 'inspect', *ids]))
+              seen, images = set(), set()
+              for item in containers:
+                  config = item['Config']
+                  name = config['Labels']['com.docker.compose.service']
+                  seen.add(name)
+                  images.add(config['Image'])
+                  checked(['docker', 'logs', item['Id']])
+                  state = item['State']
+                  if name in {'db-bootstrap', 'identity-migration'}:
+                      if state['Status'] != 'exited' or state['ExitCode'] != 0:
+                          raise SystemExit(f'{name} did not finish successfully')
+                  else:
+                      host = item['HostConfig']
+                      if not (config['User'].split(':')[0] in {'999', '1654'} and host['ReadonlyRootfs']
+                              and 'ALL' in host['CapDrop'] and 'no-new-privileges:true' in host['SecurityOpt']
+                              and state['Health']['Status'] == 'healthy'):
+                          raise SystemExit(f'{name} failed the hardening or health check')
+              if seen != services:
+                  raise SystemExit('Unexpected Compose services')
+              for image in sorted(images):
+                  checked(['docker', 'image', 'history', '--no-trunc', image])
+              print(f'Checked inspect, logs and history for {len(seen)} services and {len(values)} secrets', flush=True)
+
+          for expected in (201, 409):
+              stack('up')
+              wait_ready(19090)
+              wait_ready(19091)
+              register(expected)
+              sql = b'''SELECT count(*) FROM identity."Users" u JOIN identity."PasswordCredentials" c
+                        ON u."Id" = c."UserId" WHERE u."Email" = 'ci@example.invalid';'''
+              rows = checked(['docker', 'compose', 'exec', '-T', 'postgres', 'psql', '-XAtq', '-v', 'ON_ERROR_STOP=1',
+                              '-U', 'shipwise_admin', '-d', 'shipwise_identity'], input=sql)
+              if rows.strip() != b'1':
+                  raise SystemExit('Expected one persisted user and password credential')
+              audit()
+              if expected == 201:
+                  stack('down')
+          sp.run(['sudo', '-n', 'sha256sum', '--check', '--status',
+                  Path(os.environ['RUNNER_TEMP']) / 'shipwise.sha256'], check=True)
+
+      - name: Always remove the stack and its volumes
+        if: always()
+        run: docker compose down --volumes --remove-orphans
