@@ -3,7 +3,7 @@ using Xunit;
 namespace Shipwise.Identity.Tests.Persistence;
 
 /// <summary>Runs only when a PostgreSQL test server is configured; CI always configures one.</summary>
-public sealed class PostgreSqlFactAttribute : FactAttribute
+public class PostgreSqlFactAttribute : FactAttribute
 {
     public const string ServerVariable = "SHIPWISE_TEST_POSTGRES";
 

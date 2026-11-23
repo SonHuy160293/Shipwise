@@ -9,7 +9,7 @@ namespace Shipwise.Identity.Tests.Persistence;
 
 public sealed class BootstrapRoleTests
 {
-    [PostgreSqlFact]
+    [DockerPostgreSqlFact]
     public async Task BootstrapCanRunTwiceAndGrantsDataAccessOnlyOnFutureMigratorTables()
     {
         // Bootstrap uses fixed production role/database names. Exercise the shipped scripts
