@@ -122,12 +122,20 @@ public sealed class GatewayConfigProvider : IProxyConfigProvider, IDisposable
         }
     }
 
-    private sealed class Snapshot(IReadOnlyList<RouteConfig> routes, IReadOnlyList<ClusterConfig> clusters) : IProxyConfig, IDisposable
+    private sealed class Snapshot : IProxyConfig, IDisposable
     {
         private readonly CancellationTokenSource _changed = new();
-        public IReadOnlyList<RouteConfig> Routes { get; } = routes;
-        public IReadOnlyList<ClusterConfig> Clusters { get; } = clusters;
-        public IChangeToken ChangeToken => new CancellationChangeToken(_changed.Token);
+
+        public Snapshot(IReadOnlyList<RouteConfig> routes, IReadOnlyList<ClusterConfig> clusters)
+        {
+            Routes = routes;
+            Clusters = clusters;
+            ChangeToken = new CancellationChangeToken(_changed.Token);
+        }
+
+        public IReadOnlyList<RouteConfig> Routes { get; }
+        public IReadOnlyList<ClusterConfig> Clusters { get; }
+        public IChangeToken ChangeToken { get; }
 
         public void Signal() => _changed.Cancel();
         public void Dispose() => _changed.Dispose();

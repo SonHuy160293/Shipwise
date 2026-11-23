@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using Serilog.Events;
 using Xunit;
+using Yarp.ReverseProxy.Configuration;
 
 namespace Shipwise.Gateway.Tests;
 
@@ -433,6 +434,24 @@ public sealed partial class GatewayHttpTests
     }
 
     [Fact]
+    public async Task ReplacedSnapshotChangeTokenReportsHasChanged()
+    {
+        await using var rig = await Rig.StartAsync();
+        IProxyConfig previous = rig.ConfigProvider.GetConfig();
+        await File.AppendAllTextAsync(rig.RoutesFile, Environment.NewLine);
+
+        // Reload logs acceptance after it has signaled and disposed the previous snapshot.
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        while (!rig.Logs.Events.Any(entry => entry.MessageTemplate.Text == "Gateway configuration accepted"))
+        {
+            await Task.Delay(50, deadline.Token);
+        }
+
+        Assert.NotSame(previous, rig.ConfigProvider.GetConfig());
+        Assert.True(previous.ChangeToken.HasChanged);
+    }
+
+    [Fact]
     public async Task LogsContainOperationalFieldsWithoutSensitiveData()
     {
         await using var rig = await Rig.StartAsync();
@@ -471,6 +490,7 @@ public sealed partial class GatewayHttpTests
         private readonly ActivityListener _listener = new() { ShouldListenTo = _ => true, Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded };
         private int _calls;
         public int BackendCalls => _calls;
+        public IProxyConfigProvider ConfigProvider => _gateway.Services.GetRequiredService<IProxyConfigProvider>();
         public string RoutesFile { get; private set; } = string.Empty;
         public HttpClient Client { get; private set; } = null!;
         public CaptureSink Logs { get; } = new();
