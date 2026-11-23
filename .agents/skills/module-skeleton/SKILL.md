@@ -163,10 +163,43 @@ The shared helpers validate these at startup; a host missing any of them does no
 | `IntegrationApi:ApiKeys` | `AddConfiguredAuthorization` | At least one key, even when the module has no integration endpoint; a secret |
 | `Observability:*`, `Serilog:*` | optional | Copy the Gateway's sections |
 
-Secrets come from user secrets locally and from files under
-`SHIPWISE_CONFIG_SECRETS_DIRECTORY` (default `/run/secrets/config`) when deployed. Commit
-an `appsettings.json` with the non-secret sections only, and document every key in the
-module's section of `README.md`.
+For `dotnet run`, use .NET user secrets in the API. In Compose, the API loads JWT and
+integration keys by filename under `SHIPWISE_CONFIG_SECRETS_DIRECTORY` (default
+`/run/secrets/config`). For the API and MigrationRunner, set `Database:PasswordFile`
+to the mounted database password path. Use Identity's `AddPersistence` implementation
+for file loading and startup validation. Document the keys and mounts in `README.md`.
+
+### Adding a containerized host
+
+Use Identity's API and MigrationRunner as the examples for long-running services and
+one-off jobs. Follow [ADR 0004](../../../docs/adr/0004-deployment-and-configuration-model.md).
+
+1. In the root `Dockerfile`, add the host to the restore stage, publish its project,
+   then add a named final target based on the shared non-root `runtime` stage. Keep the
+   existing project-file copy pattern.
+2. In `deploy/compose/compose.yaml`, add a service that inherits `<<: *runtime`. Set its
+   image, networks and startup dependencies. Give a long-running host a health check.
+   Set a migration job to `restart: "no"` and gate the API on its successful exit.
+   In `compose.local.yaml`, select the build target and bind any local host port to
+   loopback.
+3. Declare each secret in the base Compose file and mount it only in the services that
+   read it. Wire database passwords through `Database__PasswordFile` and key-per-file
+   settings through their `/run/secrets/config/<Section__Key>` targets. Extend
+   `scripts/shipwise.ps1` so `init` provisions new local files and `check` validates
+   their names, Linux owners and mode. Add the readers and targets to the README table.
+4. Add the host's image row and required non-secret settings to both
+   `deploy/env/local.env.example` and `deploy/env/server.env.example`. Use
+   `shipwise-<target>:local` locally and a registry placeholder for a commit tag or
+   digest on the server. Extend the wrapper's target list and any published-port checks.
+5. For a new module, extend `deploy/compose/bootstrap.sql` to create
+   `shipwise_<module>` owned by `<module>_migrator` and a separate `<module>_api` login.
+   Follow Identity's idempotent grants for database connect, schema usage, table DML
+   and sequence usage/select on objects created by the migrator. Mount both role
+   password files in `db-bootstrap` and include them in `bootstrap.sh`'s file checks.
+6. In `.github/workflows/images.yml`, add the target to the build matrix and the service
+   to the smoke audit's expected set. For a one-off job, check exit code 0. For a
+   long-running host, check health and runtime hardening. Include its container and
+   image in the existing inspect, log and history checks.
 
 ## 7. Tests the skeleton ships
 
@@ -208,7 +241,13 @@ Required, with PostgreSQL (`[PostgreSqlFact]`, must run in CI):
 - [ ] `dotnet ef migrations has-pending-model-changes` prints no changes
 - [ ] The tests in section 7 pass, and the PostgreSQL ones run in CI without being skipped
 - [ ] The API starts locally with user secrets and both health endpoints answer
-- [ ] No secret, entity, migration, endpoint or business rule was added
+- [ ] The Dockerfile restores and publishes the host, and the local Compose build selects its target
+- [ ] The Compose service inherits the hardening anchor, has the required dependencies and passes its health or job exit check
+- [ ] Secret mounts match their readers and the README table, and the wrapper provisions and checks the files
+- [ ] Both env templates contain the host's image and settings, and the wrapper validates the target and published ports
+- [ ] For a new module, bootstrap provisions the migrator-owned database, API role and default privileges
+- [ ] The Images build matrix scans the host target and the smoke audit checks its service and image
+- [ ] The commit contains no secret values, business entities, EF migrations, business endpoints or business rules
 - [ ] `README.md`, `ARCHITECTURE.md`, `AGENTS.md` and `src/Modules/README.md` describe the
       new module, its hosts and its configuration keys
 - [ ] Commits follow the commit rule, one logical step each (projects, hosts, tests, docs)
@@ -216,15 +255,12 @@ Required, with PostgreSQL (`[PostgreSqlFact]`, must run in CI):
 ## 9. Not covered by the Identity skeleton
 
 State these as unverified in the handoff report of the work that first needs them:
-- Reading secrets from the secrets directory (the code path exists; no test or run used it).
 - User secrets on a developer machine: the Identity runs passed settings through
   environment variables.
 - A Worker. Add one only when the module publishes or consumes its first message, in the
   spec that introduces that message: it needs the reliability tables in a migration, the
   outbox relay, broker topology and the contracts in `src/Contracts`. Read
   `Shipwise.Messaging` and the cqrs-api skill section 8 first.
-- A Docker image, a compose service and a Gateway route. They belong to the spec that
-  first exposes an endpoint.
 
 Known platform limits to plan around: the Swagger title is fixed in
 `Shipwise.AspNetCore` and cannot be set per module, and HTTPS redirection is not part of

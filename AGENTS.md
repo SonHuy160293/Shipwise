@@ -20,6 +20,7 @@ exists as a base skeleton only: hosts, wiring and tests, with no business code y
 - Database changes (EF Core code-first, PostgreSQL) follow the ef-migrations skill in
   .agents/skills/ef-migrations: naming, column types, commands, expand/contract and tests.
 - Preserve telemetry privacy and cancellation. Never log credentials or sensitive payloads.
+- Follow [ADR 0004](docs/adr/0004-deployment-and-configuration-model.md) for deployment and configuration.
 - Add focused tests for behavior changes. Run scripts/Verify-Platform.ps1 and report
   skipped infrastructure tests separately. Container validation requires a running engine.
 - Do not copy source repository Git metadata, secrets, generated outputs, product

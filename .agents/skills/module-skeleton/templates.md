@@ -2,8 +2,9 @@
 
 A snapshot of the Identity module skeleton (`src/Modules/Shipwise.Identity` and
 `tests/Shipwise.Identity.Tests`) as first created, with the module renamed to `Sample`
-(schema `sample`). Replace `Sample` and `sample` with the new module's name and keep
-everything else; add nothing business-specific.
+(schema `sample`). Replace `Sample` and `sample` with the new module's name. For
+container deployment, apply the [host checklist](SKILL.md#adding-a-containerized-host)
+and the persistence update below.
 
 The Identity form of these files is the one that was built under the repository's
 analyzers with no warning and tested, including against PostgreSQL. The `Sample` form
@@ -139,6 +140,12 @@ public static class ServiceCollectionExtensions
 ```
 
 `src/Modules/Shipwise.Sample/Shipwise.Sample.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs`
+
+The original snapshot below takes a connection string. For a new host, copy
+`AddPersistence` and its `ReadPasswordFile` helper from the
+[current Identity implementation](../../../src/Modules/Shipwise.Identity/Shipwise.Identity.Infrastructure/DependencyInjection/ServiceCollectionExtensions.cs).
+Use the module's DbContext and import `Npgsql`. This supports the Compose
+`Database:PasswordFile` mount and the host-development connection string.
 
 ```csharp
 using Microsoft.EntityFrameworkCore;

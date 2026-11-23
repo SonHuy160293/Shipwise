@@ -29,7 +29,60 @@ The PostgreSQL and RabbitMQ tests explicitly skip when their connection variable
 are absent. Core tests require no external infrastructure. Build analyzers remain
 enabled; the imported source includes existing style/analyzer warnings.
 
-## Run the optional Gateway
+## Run the local stack
+
+From the repository root, use PowerShell 7 and a running Docker Linux engine with Compose.
+
+```powershell
+./scripts/shipwise.ps1 init
+./scripts/shipwise.ps1 check
+./scripts/shipwise.ps1 up
+./scripts/shipwise.ps1 status
+./scripts/shipwise.ps1 logs
+```
+
+`init` copies the local template to `deploy/env/local.env` and generates missing secrets
+in `deploy/secrets/shipwise-local/`. Both are Git-ignored. Running `init` again preserves
+existing settings and secret values. On Linux it uses `sudo` when needed to set ownership.
+`check` validates settings, images, secret files and port availability. `up` repeats the
+checks, builds the local images and waits for startup. In `status`, `db-bootstrap` and
+`identity-migration` should show exit code 0. PostgreSQL, Identity API and Gateway should
+show healthy.
+
+| Service | Default local port | How to check it |
+|---|---:|---|
+| Gateway | 19090 | `http://127.0.0.1:19090/health/ready` |
+| Identity API | 19091 | `http://127.0.0.1:19091/health/ready` |
+| Application PostgreSQL | 25441 | Database `shipwise_identity` |
+| Test PostgreSQL (separate infrastructure profile) | 25431 | Database `shipwise_tests` |
+
+Use `./scripts/shipwise.ps1 down` to stop the stack and retain its database for the next
+`up`. To delete the stack's volumes and their data, run `./scripts/shipwise.ps1 down -Reset`
+and type the stack name at the confirmation prompt.
+
+### Secret files
+
+Compose mounts each file only in the services listed below. The environment file holds
+settings and file paths. The secret values stay in the files.
+
+| File in `SHIPWISE_SECRETS_DIR` | Services that read it | Mount path inside each service |
+|---|---|---|
+| `postgres-admin-password` | `postgres`, `db-bootstrap` | `/run/secrets/postgres-admin-password` (`POSTGRES_PASSWORD_FILE` in PostgreSQL) |
+| `identity-migrator-password` | `db-bootstrap`, `identity-migration` | `/run/secrets/identity-migrator-password` (`Database:PasswordFile` in MigrationRunner) |
+| `identity-api-password` | `db-bootstrap`, `identity-api` | `/run/secrets/identity-api-password` (`Database:PasswordFile` in the API) |
+| `identity-jwt-key` | `identity-api` | `/run/secrets/config/Jwt__SecretKey` |
+| `identity-integration-key` | `identity-api` | `/run/secrets/config/IntegrationApi__ApiKeys__0` |
+
+On a Linux server, `./scripts/shipwise.ps1 init -Environment server` creates
+`deploy/env/server.env` from the server template. The operator supplies the files in
+`/etc/shipwise/secrets/<stack>/` with mode `0400`. Set owner UID 999 for
+`postgres-admin-password` and UID 1654 for the other four. Fill in the template
+placeholders, including the published application image references (commit tag or
+digest) and `SHIPWISE_INGRESS_PROXY_IP`, the IP of the ingress proxy trusted by the
+Gateway. Run `check` and `up` with `-Environment server`. Only the Gateway publishes a
+loopback port on the server.
+
+## Run the Gateway with dotnet
 
 ```powershell
 dotnet run --project src/Gateway/Shipwise.Gateway --no-launch-profile -- --environment Development --urls http://127.0.0.1:19090
@@ -46,7 +99,7 @@ Route `Metadata:CacheControl` can be set to `no-store` for private responses. JW
 helpers retain signature/lifetime validation and require an authoritative
 `IAuthenticatedContextValidator`; a missing validator rejects every token.
 
-## Run the Identity module
+## Run the Identity module with dotnet
 
 `src/Modules/Shipwise.Identity` holds five projects (Domain, Application, Infrastructure,
 API, MigrationRunner). It exposes `/health/live`, `/health/ready` and the public
@@ -56,9 +109,9 @@ only when registration should be available. Disabled registration returns 404 be
 rate limiting; enabled registration is limited to five requests per minute per client IP.
 The Development Gateway forwards the registration route to the Identity API on port 19091.
 
-The API does not start without these settings. Keep the secrets in user secrets locally,
-or as files under `SHIPWISE_CONFIG_SECRETS_DIRECTORY` (default `/run/secrets/config`) when
-deployed; never put them in `appsettings.json`.
+For host development, `dotnet run` still works with .NET user secrets for the API.
+Use a running development PostgreSQL instance and free the API and Gateway ports before
+starting the hosts.
 
 | Key | Purpose |
 |---|---|
@@ -77,9 +130,11 @@ dotnet user-secrets set 'Jwt:Audience' 'shipwise-local' --project $api
 dotnet user-secrets set 'Jwt:AccessTokenExpirationMinutes' '15' --project $api
 dotnet user-secrets set 'IntegrationApi:ApiKeys:0' '<random value>' --project $api
 
-# Apply migrations (creates the database and the identity schema), then start the API.
-$env:ConnectionStrings__ApplicationDb = '<connection string>'
-dotnet run --project src/Modules/Shipwise.Identity/Shipwise.Identity.MigrationRunner
+# Scope the migrator connection to a separate process. The API uses its own user secrets.
+pwsh -NoProfile -Command {
+    $env:ConnectionStrings__ApplicationDb = '<migrator connection string>'
+    dotnet run --project src/Modules/Shipwise.Identity/Shipwise.Identity.MigrationRunner
+}
 dotnet run --project $api --launch-profile Local    # http://localhost:19091
 ```
 
@@ -90,23 +145,18 @@ every protected endpoint answers 401 by design. The HTTP contract is generated a
 `contracts/openapi/shipwise.v1.json`. To regenerate it after an approved contract change,
 set `SHIPWISE_UPDATE_CONTRACT=1` and run the `OpenApiContractTests` test.
 
-## Local Docker profiles
+## Test infrastructure and telemetry
 
-Docker Desktop's Linux engine must be running. Compose is for local development;
-ports bind to loopback. Infrastructure defaults use public, disposable local-test
-passwords. Override them with the corresponding environment variables when needed.
+The `infrastructure` and `telemetry` profiles use a separate Compose project. Start
+the infrastructure profile for PostgreSQL and RabbitMQ tests. Start telemetry when
+you need the local observability services.
 
 ```powershell
-& ./scripts/shipwise.ps1 -Action config
-& ./scripts/shipwise.ps1 -Action up -Profile gateway
-$env:SHIPWISE_OBSERVABILITY_ENABLED = 'true'
-& ./scripts/shipwise.ps1 -Action up -Profile gateway,telemetry
-& ./scripts/shipwise.ps1 -Action up -Profile infrastructure
+./scripts/shipwise.ps1 up -Profile infrastructure
+./scripts/shipwise.ps1 up -Profile telemetry
 ```
 
-On Bash, use `bash scripts/shipwise.sh up gateway telemetry` (or `infrastructure`).
-Grafana is available at `http://localhost:23000` with username `admin` and password
-from `SHIPWISE_GRAFANA_PASSWORD` (local default `local-observability-only`).
+Grafana listens on loopback port 23000. Its password setting is `SHIPWISE_GRAFANA_PASSWORD`.
 
 For isolated infrastructure tests, use a dedicated empty database: tests create the
 `reliability` schema and must never target an application database. The Identity tests
@@ -114,14 +164,13 @@ create and drop a database of their own on the same server, so the test user mus
 allowed to create databases.
 
 ```powershell
-$env:SHIPWISE_TEST_POSTGRES = 'Host=localhost;Port=25431;Database=shipwise_tests;Username=shipwise_tests;Password=local-tests-only'
-$env:SHIPWISE_TEST_RABBITMQ = 'amqp://shipwise_tests:local-tests-only@localhost:25672/'
+$env:SHIPWISE_TEST_POSTGRES = 'Host=localhost;Port=25431;Database=shipwise_tests;Username=shipwise_tests;Password=<test database password>'
+$env:SHIPWISE_TEST_RABBITMQ = 'amqp://shipwise_tests:<URL-encoded test broker password>@localhost:25672/'
 & ./scripts/Verify-Platform.ps1 -RequireInfrastructure
 ```
 
-Stop containers with `& ./scripts/shipwise.ps1 -Action down -Profile gateway,telemetry,infrastructure`.
-Named data volumes are retained. No deployment script creates business databases,
-email-provider credentials or module broker topology.
+Stop these services with `./scripts/shipwise.ps1 down -Profile infrastructure,telemetry`.
+Named data volumes are retained.
 
 ## Add business functionality
 
