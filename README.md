@@ -156,12 +156,20 @@ you need the local observability services.
 ./scripts/shipwise.ps1 up -Profile telemetry
 ```
 
-Grafana listens on loopback port 23000. Its password setting is `SHIPWISE_GRAFANA_PASSWORD`.
+Grafana listens on loopback port 23000. Its initial username is `admin`.
+Set `SHIPWISE_GRAFANA_PASSWORD` before starting the telemetry profile, or use the
+disposable default in [deploy/compose.yaml](deploy/compose.yaml).
 
 For isolated infrastructure tests, use a dedicated empty database: tests create the
 `reliability` schema and must never target an application database. The Identity tests
 create and drop a database of their own on the same server, so the test user must be
 allowed to create databases.
+
+For the connection strings below, use the PostgreSQL password from
+`SHIPWISE_TEST_POSTGRES_PASSWORD` and the RabbitMQ password from
+`SHIPWISE_TEST_RABBITMQ_PASSWORD`. If you started the infrastructure profile without
+setting them, use their disposable defaults in [deploy/compose.yaml](deploy/compose.yaml).
+URL-encode the RabbitMQ password when inserting it into the URI.
 
 ```powershell
 $env:SHIPWISE_TEST_POSTGRES = 'Host=localhost;Port=25431;Database=shipwise_tests;Username=shipwise_tests;Password=<test database password>'
