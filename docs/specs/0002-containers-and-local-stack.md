@@ -1,6 +1,6 @@
 # 0002 Containers and the local stack
 
-Status: approved · Owner: Claude Code · Related ADRs: 0004, 0001 · Design proposal: none (no screens)
+Status: done · Owner: Claude Code · Related ADRs: 0004, 0001 · Design proposal: none (no screens)
 
 ## Problem and outcome
 
@@ -279,4 +279,63 @@ No open questions.
 
 ## Delivery record
 
-Empty until the spec is closed.
+Closed 2026-11-23 after the final review (task 6). Every task was reviewed before its push.
+
+| Task | Commits | Evidence |
+|---|---|---|
+| 1 | none (throwaway proof) | Both ADR 0004 techniques proven on Docker Desktop; change log 2026-11-21 |
+| 2 | `ca0d60f`, `6fea1c5` | `PasswordFileTests`, `TrustedForwardingTests`; Platform CI green |
+| 3 | `28a56f4`, `3860cd3` | `BootstrapRoleTests` runs in Platform CI, not skipped; local `init`, `check`, `up`, registration 201 |
+| 4 | `5afc03c` | Images run on a verification branch, then on `main`: three images published as `ghcr.io/sonhuy160293/shipwise-<target>:<sha>` for `5afc03c` and `d427f1e` |
+| 5 | `272a173`, `d22f13b` | README, ARCHITECTURE, module-skeleton skill, one AGENTS.md line |
+| 6 | this commit | Final review |
+
+Spec documents: `175feac` (approval), `876300d` and `bf1e5f3` (change log).
+
+Acceptance criteria:
+- AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-8, AC-11: the Images smoke job on a fresh runner
+  (init twice with unchanged hashes; `check` failures for a missing key, a missing or
+  empty secret and a used port without disclosing a secret; jobs exit 0 and both
+  readiness endpoints answer; registration 201 with one user and one password row;
+  restart then 409 with unchanged secrets; secret search in inspect output, logs and
+  image history; non-root, read-only, all capabilities dropped, no new privileges;
+  digest check of every external base image).
+- AC-2's `latest` rule for server image references is implemented in `Test-Stack` but not
+  exercised by an automated test; the test plan did not require one.
+- AC-6: `BootstrapRoleTests` (bootstrap twice, a migration, data access allowed, `CREATE`,
+  `ALTER`, `DROP` and `TEMP` denied).
+- AC-9: `TrustedForwardingTests`. AC-10: the Images workflow on `main`.
+
+Approved deviations and accepted exceptions:
+- Local application images use `shipwise-<target>:local` tags, and the server template
+  adds `SHIPWISE_INGRESS_PROXY_IP` (change log 2026-11-21).
+- `identity_api` can write `__EFMigrationsHistory` through default privileges (change log
+  2026-11-21).
+- `db-bootstrap` runs as root with `DAC_READ_SEARCH` so it can read the secret files owned
+  by UID 1654 and 999. It is a short-lived job and not long-running, so AC-8 does not
+  cover it.
+
+Found during delivery and fixed outside the task table: the Gateway's route snapshot
+threw `ObjectDisposedException` when a reload replaced it while YARP was reading it,
+which failed Platform CI once on `5afc03c` (`9928fa7`, test `d427f1e`, small change lane).
+
+Deferred follow-ups:
+- The base compose file sets `Gateway__RoutesFile: proxy.Development.json` for every
+  environment. Move it to `compose.local.yaml` and add a production routes file before the
+  first server deployment.
+- Let the Gateway trust an ingress network range (CIDR) instead of one proxy IP.
+- `scripts/shipwise.sh` is stale: its default `gateway` profile no longer exists, and
+  ADR 0004 keeps one wrapper. Delete it (small change).
+- `BootstrapRoleTests` needs Docker but skips only when `SHIPWISE_TEST_POSTGRES` is unset,
+  so a machine with the test database and no Docker fails instead of skipping.
+- `down -Reset` asks for confirmation only interactively; CI removes volumes with
+  `docker compose down --volumes` directly.
+- Optional: publish images from a separate `main`-only job so branch runs do not hold
+  `packages: write`; move `ReadPasswordFile` to a shared library when a second module
+  needs it.
+- The remote branch `verify/spec-0002-task4-images` (at `5afc03c`) was not created by the
+  review and is left for the owner to delete.
+
+Convention worth keeping: a change whose proof is a CI run (a workflow) is verified on a
+branch run of the reviewed commit before it is pushed to `main`, and the branch is
+deleted afterwards.
