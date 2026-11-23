@@ -437,12 +437,15 @@ public sealed partial class GatewayHttpTests
     public async Task ReplacedSnapshotChangeTokenReportsHasChanged()
     {
         await using var rig = await Rig.StartAsync();
+        const string acceptedEvent = "Gateway configuration accepted";
+        int accepted = rig.Logs.Events.Count(entry => entry.MessageTemplate.Text == acceptedEvent);
         IProxyConfig previous = rig.ConfigProvider.GetConfig();
         await File.AppendAllTextAsync(rig.RoutesFile, Environment.NewLine);
 
         // Reload logs acceptance after it has signaled and disposed the previous snapshot.
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-        while (!rig.Logs.Events.Any(entry => entry.MessageTemplate.Text == "Gateway configuration accepted"))
+        while (rig.Logs.Events.Count(entry => entry.MessageTemplate.Text == acceptedEvent) < accepted + 1
+            || ReferenceEquals(previous, rig.ConfigProvider.GetConfig()))
         {
             await Task.Delay(50, deadline.Token);
         }
