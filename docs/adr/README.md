@@ -14,6 +14,7 @@ becomes `superseded by NNNN`.
 | [0003](0003-api-contract-workflow.md) | API contract: generated from the API host and checked by a test | accepted |
 | [0004](0004-deployment-and-configuration-model.md) | Deployment and configuration model | accepted |
 | [0005](0005-sessions-and-tokens.md) | Sessions and tokens: both tokens in HttpOnly cookies | accepted |
+| [0006](0006-orca-orchestration.md) | Agent handoffs run through Orca orchestration | proposed |
 
 Pending decisions:
 - Email sending and verification. Due before any invitation feature.

@@ -154,6 +154,75 @@ Never fix a spec or contract inconsistency silently in code and document it afte
   code or widens the scope.
 - A change is pushed only with no open blocker.
 
+## Running a task with Orca
+
+Feature and high-risk tasks run under Orca orchestration
+([ADR 0006](adr/0006-orca-orchestration.md)); a small change may too. Every rule above still applies: Orca only carries the briefs,
+reports, questions and findings between agents. When Orca is unavailable, hand off by
+hand as above.
+
+**Before the first Run on a machine (human)**
+- Orca is running (`orca status --json` succeeds), Settings → Experimental →
+  Orchestration is on, and Settings → Agents → Agent Permissions is Manual (ADR 0006).
+  A worker waiting on a permission prompt needs the human in its terminal or chat.
+- Commands and flags come from `orca skills get orchestration --full` for the installed
+  version. Pass `--environment local` on every orchestration command.
+
+**Coordinator (Claude Code)**
+- Runs in an Orca terminal on the Shipwise primary checkout. It creates one Run per spec,
+  only after Gate 2 (`run-create --objective "Spec NNNN <title>"`).
+- Creates one task per task-table row, plus one review task per implementation task that
+  depends on it (`task-create --spec-file <file> --deps '["<task id>"]'`).
+- Starts each worker in a primary checkout, never a new worktree: `--worktree current`
+  for Shipwise, the Shipwise-Web checkout's worktree selector for Shipwise-Web. One worker
+  per checkout at a time; the coordinator edits no file in a checkout while a worker is
+  dispatched there.
+- Agent per owner: Codex `--agent codex`, Gemini `--agent gemini`, reviews
+  `--agent claude`.
+- Starts a worker, then ends its turn. Orca wakes it when a worker reports or asks; it
+  never polls or reads a worker's terminal (`worker-read --dispatch <id>` shows output).
+
+**Task spec** (a file per task, passed with `--spec-file`; the first line is the title)
+
+```
+Spec NNNN task N: <title>
+Read docs/specs/NNNN-slug.md, task N, and AGENTS.md before starting.
+Owner: <agent>. Repository: <repo>.
+Paths you may edit: <the task's Paths column>.
+Covers: <AC list>.
+Done when: <the task's commands>. Any failing command means the task failed.
+Commit under the commit rule. Do not push.
+Placement: this machine (local), set up on this machine.
+```
+
+A review task names the implementation task, runs the review-change skill on its
+unpushed commits, and reports the findings and the verdict in `worker_done`.
+
+**Workers (Codex, Gemini, Claude as reviewer)**
+- Follow the dispatch preamble and the repository's `AGENTS.md`.
+- Stop and ask: send the decision request with `orca orchestration ask`, then end the
+  turn and wait for the answer.
+- Finish with exactly one `worker_done`. Its body is the handoff report. A failing
+  "Done when" command is `--outcome failed`.
+- Never push, rewrite history or edit paths the task does not own.
+
+**Questions, review and Gate 3**
+- The coordinator answers a question only when the approved spec or a "Who decides →
+  Agent" row settles it. Anything else goes to the human word for word; the worker waits.
+- After an implementation task succeeds, the coordinator starts its review task. Findings
+  go back to the author with `send --to dispatch:<id> --body-file <findings>`; the author
+  fixes them in new commits and reports again; the reviewer rechecks.
+- With no open blocker, the coordinator reports to the human, who pushes. A dependent
+  task starts only after the human confirms the push and `git fetch` shows the commits
+  on `origin/main`.
+
+**When something fails**
+- Follow the `next` or recovery steps the command prints. Retry with
+  `worker-start --task <id> --retry-of <dispatch id> ...` only after the cause has
+  changed. A task that fails three starts stays failed; report it to the human.
+- Never mark a reported failure completed, and never run `orchestration reset` unless
+  the human gives up that Run.
+
 ## Closing a feature
 
 When every task is pushed and the human confirms the integration check, the planner sets
