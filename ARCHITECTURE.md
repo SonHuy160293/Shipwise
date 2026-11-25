@@ -12,19 +12,19 @@ It preserves separately composable hosts; it does not introduce a modular monoli
 | Observability | OTLP export and safe telemetry processors | None |
 | Utilities | Configuration helpers | None |
 | Gateway | Explicit YARP route allowlist and host composition | AspNetCore, Observability |
-| Identity.Domain | User and password credential models | SharedKernel |
-| Identity.Application | Account registration command, validation and handler | Identity.Domain, SharedKernel |
-| Identity.Infrastructure | `IdentityDbContext` (schema `identity`), unit of work, design-time factory | Identity.Application, Identity.Domain, EntityFrameworkCore |
-| Identity.API | Public registration endpoint, `/health/live` and `/health/ready` | Identity.Application, Identity.Infrastructure, AspNetCore, Observability |
+| Identity.Domain | User, password credential and session models | SharedKernel |
+| Identity.Application | Registration, sign-in, refresh, sign-out and account handlers | Identity.Domain, SharedKernel |
+| Identity.Infrastructure | Identity persistence, token issuance, throttle and session validation | Identity.Application, Identity.Domain, EntityFrameworkCore, AspNetCore |
+| Identity.API | Authentication, account and health endpoints | Identity.Application, Identity.Infrastructure, AspNetCore, Observability |
 | Identity.MigrationRunner | Applies migrations and exits | Identity.Infrastructure, Observability |
 
 BuildingBlocks never reference module implementations or contracts. The architecture
 script checks source and test project references for missing/external paths and cycles,
 and enforces the layer order inside a module. Contracts is still a documentation-only
 extension point. Identity owns database `shipwise_identity`, schema `identity` and the EF
-migration for account registration. The Gateway can forward the public registration
-route to Identity. Protected endpoints reject tokens until an authoritative
-`IAuthenticatedContextValidator` is registered.
+migrations for users, password credentials and sessions. The Gateway forwards the
+authentication and account routes to Identity. Identity's authoritative validator checks
+the session owner, revocation and both deadlines with an unlocked read on every protected request.
 The Identity unit of work commits only when a command returns a successful result.
 `ApiController` requires an authenticated user for every derived controller.
 
@@ -50,8 +50,12 @@ reloads. Readiness validates routing configuration, not upstream availability. P
 routes can opt into `no-store` through route metadata; no business paths are hardcoded.
 
 JWT validation pins HS256 and requires issuer, audience, expiry, user/session GUIDs
-and an authoritative active-context validator. Identity stores registration credentials.
-Token issuance is outside the registration flow. The shared platform provides permission
+and an authoritative active-context validator. A bearer header takes precedence over the access
+cookie. Identity issues HttpOnly, SameSite=Strict cookies, with Secure enabled outside
+Development. Cookie-authenticated writes and public session POSTs require an allowed Origin.
+Refresh, sign-out and replacement sign-in lock the session in the command transaction.
+Refresh reuse after the grace window commits the revocation before returning 401.
+The shared platform provides permission
 formatting and generic claims and current-user abstractions.
 
 Telemetry meter names, metric names, service namespace, heartbeat environment variable

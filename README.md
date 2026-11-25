@@ -8,8 +8,8 @@ tests and product documents were not imported.
 The solution contains six BuildingBlocks (SharedKernel, AspNetCore,
 EntityFrameworkCore, Messaging, Observability and Utilities), an optional YARP
 Gateway, the Identity module, and four test projects. See
-[ARCHITECTURE.md](ARCHITECTURE.md). Identity provides account registration; it does
-not yet issue tokens or sessions.
+[ARCHITECTURE.md](ARCHITECTURE.md). Identity provides account registration and sign-in,
+session refresh, sign-out, and the signed-in user's account.
 
 ## Build and verify
 
@@ -89,7 +89,7 @@ dotnet run --project src/Gateway/Shipwise.Gateway --no-launch-profile -- --envir
 ```
 
 The default route file is empty. Development selects `proxy.Development.json`, which
-forwards registration to the Identity API. Readiness verifies route configuration,
+forwards registration, sign-in, refresh, sign-out and account requests to Identity. Readiness verifies route configuration,
 not upstream availability. Selecting the empty route file in Development with
 `Gateway:AllowEmptyConfiguration` enabled gives a live but not ready Gateway.
 Production rejects empty routing even with the flag set;
@@ -107,7 +107,12 @@ API, MigrationRunner). It exposes `/health/live`, `/health/ready` and the public
 is enabled in Development and disabled by default elsewhere. Set `Registration:Enabled`
 only when registration should be available. Disabled registration returns 404 before
 rate limiting; enabled registration is limited to five requests per minute per client IP.
-The Development Gateway forwards the registration route to the Identity API on port 19091.
+The Development Gateway forwards Identity routes to port 19091. Sign in with
+`POST /api/v1/auth/sign-in`, then read `GET /api/v1/account`. Use
+`POST /api/v1/auth/refresh` to rotate the refresh cookie, and
+`POST /api/v1/auth/sign-out` to end the current session. Send an allowed `Origin`
+on these three POSTs and on every unsafe request carrying an auth cookie. Compose
+uses `SHIPWISE_FRONTEND_ORIGIN` for the Identity and Gateway allowlists.
 
 For host development, `dotnet run` still works with .NET user secrets for the API.
 Use a running development PostgreSQL instance and free the API and Gateway ports before
@@ -127,7 +132,7 @@ dotnet user-secrets set 'ConnectionStrings:ApplicationDb' '<connection string>' 
 dotnet user-secrets set 'Jwt:SecretKey' '<random value, 32 bytes or more>' --project $api
 dotnet user-secrets set 'Jwt:Issuer' 'shipwise-local' --project $api
 dotnet user-secrets set 'Jwt:Audience' 'shipwise-local' --project $api
-dotnet user-secrets set 'Jwt:AccessTokenExpirationMinutes' '15' --project $api
+dotnet user-secrets set 'Jwt:AccessTokenExpirationMinutes' '10' --project $api
 dotnet user-secrets set 'IntegrationApi:ApiKeys:0' '<random value>' --project $api
 
 # Scope the migrator connection to a separate process. The API uses its own user secrets.
@@ -140,8 +145,11 @@ dotnet run --project $api --launch-profile Local    # http://localhost:19091
 
 The MigrationRunner reads its connection string from the environment or the command
 line, exits with 0 on success and 1 on failure, and is the only thing that applies
-migrations. No token is accepted yet: there is no `IAuthenticatedContextValidator`, so
-every protected endpoint answers 401 by design. The HTTP contract is generated at
+migrations. Identity validates access tokens against the session on each protected request.
+Access tokens last 10 minutes. Sessions expire after 7 idle days or 30 days in total.
+The previous refresh token can be used for 30 seconds after rotation. Configure these
+intervals with `Jwt:AccessTokenExpirationMinutes`, `Session:IdleTimeoutDays`,
+`Session:AbsoluteTimeoutDays` and `Session:RefreshGraceSeconds`. The HTTP contract is generated at
 `contracts/openapi/shipwise.v1.json`. To regenerate it after an approved contract change,
 set `SHIPWISE_UPDATE_CONTRACT=1` and run the `OpenApiContractTests` test.
 
