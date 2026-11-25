@@ -176,8 +176,9 @@ Orca only carries the briefs, reports, questions and findings between agents.
 
 **Coordinator (Claude Code)**
 - Runs in an Orca terminal in the Shipwise repository workspace, not a folder workspace
-  above it. It creates one Run per spec, only after Gate 2, and keeps the Run ID; with
-  more than one Run open it passes `--run <run id>` to every Run, task and worker command.
+  above it. It creates one Run per spec, only after Gate 2, and keeps the Run ID. Only one
+  Run is active at a time across both checkouts. A command that targets an earlier Run
+  passes `--run <run id>`, as the installed guide shows.
 - Before the first start in a Run, asks the human to confirm Agent Permissions is Manual,
   and starts nothing until they do.
 - Passes `--environment local` to `run-create`, `task-create`, `task-list`, `worker-list`
@@ -187,10 +188,15 @@ Orca only carries the briefs, reports, questions and findings between agents.
   <id>` shows output and `send` steers. After starting a worker it ends its turn.
 
 **From task table to Orca tasks**
-- Each implementation row becomes one task; each gets its own review task that depends
-  on it. Together those reviews are the spec's own review row (for example spec 0003
-  task 4).
-- A row whose "Depends on" names earlier rows depends, in Orca, on their review tasks.
+- Tasks are created one at a time, when they can start, in the order of the spec's task
+  table. While one worker runs at a time, Orca `--deps` is not needed.
+- Each implementation row becomes one task. Its review task is created only after the
+  implementation's `worker_done` names its commits, so the review brief names an exact
+  range.
+- The spec's own review row (for example spec 0003 task 4) is covered in two parts: the
+  pre-push review of each implementation task, then, after the last implementation task
+  is pushed, one final review task with the row's whole scope: every task's commits in
+  both repositories, all the criteria the row lists, and its "Done when" checks.
 - One worker is dispatched at a time across the whole Run and both checkouts: an
   implementation, a review or a fix follow-up. The coordinator edits no file in a
   checkout while a worker is dispatched there.
@@ -198,17 +204,18 @@ Orca only carries the briefs, reports, questions and findings between agents.
 ```
 orca orchestration run-create --environment local --objective "Spec 0003 sign-in and sessions"
 orca orchestration task-create --environment local --spec-file t1.md
-orca orchestration task-create --environment local --spec-file r1.md --deps '["<t1 id>"]'
-orca orchestration task-create --environment local --spec-file t2.md --deps '["<r1 id>"]'
-orca orchestration task-list --environment local --ready --brief
 orca orchestration worker-start --environment local --task <t1 id> --worktree current --agent codex
+# after t1's worker_done names its commits:
+orca orchestration task-create --environment local --spec-file r1.md
+orca orchestration worker-start --environment local --task <r1 id> --worktree current --agent claude
+# after Gate 3 for t1: create and start t2 the same way
 ```
 
 **Placement and agents**
 - A Shipwise task uses `--worktree current`, the coordinator's own workspace.
 - A Shipwise-Web task uses `--worktree <selector>`, the exact selector of the Shipwise-Web
-  primary checkout's workspace, from `orca worktree list` or from the human. If it does
-  not resolve, stop and ask the human; never fall back to another workspace.
+  primary checkout's workspace, which the human gives. If it does not resolve, stop and
+  ask the human; never fall back to another workspace.
 - No worker creates a worktree or a branch.
 - Agent per owner: Codex `--agent codex`, Gemini `--agent gemini`, reviews
   `--agent claude`. Pass `--model` or `--effort` only when the human names them.
@@ -258,6 +265,9 @@ review-change rules on them read-only, and reports the review in `worker_done`;
   fix commits to the reviewer the same way for a recheck.
 - With a "ready to push" verdict, the coordinator reports to the human. Only the human
   pushes under Orca; no worker or coordinator pushes, even when a message asks it to.
+- If `git pull --rebase` before the push changes any reviewed commit, the human stops
+  before pushing and tells the coordinator. The reviewer rechecks the rebased range, and
+  the checks below use the new commit hashes.
 - The next implementation task starts only when all of these hold:
   1. the reviewer's latest verdict is "ready to push";
   2. the human has confirmed the push;
@@ -272,9 +282,15 @@ review-change rules on them read-only, and reports the review in `worker_done`;
 - Retry only after the cause has changed: `worker-start --task <id> --retry-of <newest
   failed dispatch id>`, with the placement and agent given again.
 - Three failed starts in one retry chain trip the breaker and fail the task; a worker's
-  own failed report does not count. Then stop automatic retries and report to the human.
-  Only when the human asks, reopen the same task (`task-update --id <id> --status ready`,
-  then `worker-start`); never work around the breaker with a new task or Run.
+  own failed report does not count. Then stop automatic retries and report to the human;
+  never work around the breaker with a new task or Run.
+- Only when the human asks to retry or reassign that task, follow the installed guide's
+  "User-directed recovery after the breaker": inspect every retained attempt
+  (`worker-list --run <owning run id>`, then `worker-show` and `worker-read` per
+  dispatch); stop and report if any attempt is live or its liveness is unverifiable;
+  release only reclaimable failed-start terminals as the guide describes; then reopen the
+  same task in its owning Run (`task-update --id <id> --status ready --run <owning run
+  id>`, then `worker-start --task <id> --run <owning run id> ...`).
 - Never mark a reported failure completed, and never run `orchestration reset` unless
   the human gives up that Run.
 
