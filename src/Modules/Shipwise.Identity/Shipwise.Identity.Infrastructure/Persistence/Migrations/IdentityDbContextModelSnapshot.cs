@@ -59,6 +59,71 @@ namespace Shipwise.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("PasswordCredentials", "identity");
                 });
 
+            modelBuilder.Entity("Shipwise.Identity.Domain.Models.Session", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("IdleExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreviousRefreshTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<short?>("RevocationReason")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RotatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_Sessions_UserId");
+
+                    b.ToTable("Sessions", "identity", t =>
+                        {
+                            t.HasCheckConstraint("CK_Sessions_Revocation", " (\"RevokedAt\" IS NULL) = (\"RevocationReason\" IS NULL) ");
+
+                            t.HasCheckConstraint("CK_Sessions_RevocationReason", " \"RevocationReason\" IS NULL OR \"RevocationReason\" IN (1, 2, 3) ");
+                        });
+                });
+
             modelBuilder.Entity("Shipwise.Identity.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -113,6 +178,15 @@ namespace Shipwise.Identity.Infrastructure.Persistence.Migrations
                     b.HasOne("Shipwise.Identity.Domain.Models.User", null)
                         .WithOne()
                         .HasForeignKey("Shipwise.Identity.Domain.Models.PasswordCredential", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Shipwise.Identity.Domain.Models.Session", b =>
+                {
+                    b.HasOne("Shipwise.Identity.Domain.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
