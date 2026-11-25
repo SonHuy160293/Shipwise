@@ -1,6 +1,6 @@
 # 0006 Agent handoffs run through Orca orchestration
 
-Status: proposed · Date: 2026-11-25 · Decider: owner · Related: `docs/workflow.md`, spec 0003
+Status: accepted · Date: 2026-11-25 · Decider: owner · Related: `docs/workflow.md`, spec 0003
 
 ## Context
 
@@ -161,9 +161,8 @@ Option B.
 
 ## Consequences
 
-- `docs/workflow.md` gains a "Running a task with Orca" section, marked not in effect
-  until this ADR is accepted. Both `AGENTS.md` files already point to it for the process,
-  so they do not change.
+- `docs/workflow.md` gains a "Running a task with Orca" section. Both `AGENTS.md` files
+  already point to it for the process, so they do not change.
 - The human stops relaying messages but still decides every gate, every human decision
   and every push, and answers permission prompts while Manual is set.
 - One worker at a time, as today: Orca does not make features faster yet, only the

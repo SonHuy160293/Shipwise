@@ -157,11 +157,8 @@ Never fix a spec or contract inconsistency silently in code and document it afte
 
 ## Running a task with Orca
 
-> **Not in effect yet.** This section is proposed in
-> [ADR 0006](adr/0006-orca-orchestration.md) and applies only once the owner accepts that
-> ADR. Until then, every task keeps the manual handoff above.
-
-Feature and high-risk tasks run under Orca orchestration. Small changes keep the manual
+Feature and high-risk tasks run under Orca orchestration
+([ADR 0006](adr/0006-orca-orchestration.md)). Small changes keep the manual
 handoff, and so does every task when Orca is unavailable. Every rule above still applies:
 Orca only carries the briefs, reports, questions and findings between agents.
 
