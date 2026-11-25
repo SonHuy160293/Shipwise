@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
@@ -38,10 +40,31 @@ try
         .AddInfrastructure(builder.Configuration);
 
     builder.Services.AddCurrentUserProvider();
+    builder.Services.AddSingleton<AuthCookieWriter>();
     builder.Services.AddControllers(options =>
     {
         options.Filters.Add<ApiResponseEnvelopeFilter>();
         options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+    }).ConfigureApiBehaviorOptions(options =>
+    {
+        var defaultResponse = options.InvalidModelStateResponseFactory;
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            if (context.ActionDescriptor is ControllerActionDescriptor
+                { ControllerTypeInfo.Name: "AuthController", ActionName: "SignIn" })
+            {
+                // JSON parser messages can contain attacker-controlled text. Return only public field names.
+                var errors = new Dictionary<string, string[]>
+                {
+                    ["email"] = ["Provide an email."],
+                    ["password"] = ["Provide a password."],
+                };
+                var error = new ApiErrorResponse("Validation.Failure", "The sign-in request is invalid.", errors, context.HttpContext.TraceIdentifier);
+                return new BadRequestObjectResult(error);
+            }
+
+            return defaultResponse(context);
+        };
     });
     builder.Services.AddConfiguredCors(builder.Configuration);
     builder.Services.AddConfiguredAuthentication(builder.Configuration, builder.Environment);
@@ -55,6 +78,9 @@ try
         options.AddPolicy("registration", context => RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.MapToIPv6().ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        options.AddPolicy("sign-in", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.MapToIPv6().ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         options.OnRejected = async (context, cancellationToken) =>
         {
             context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -83,6 +109,7 @@ try
 
     app.UseCors(CorsOptions.PolicyName);
     app.UseRouting();
+    app.UseMiddleware<OriginCheckMiddleware>();
     app.Use(async (context, next) =>
     {
         if (context.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == "registration"

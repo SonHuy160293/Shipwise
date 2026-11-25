@@ -80,7 +80,7 @@ services:
       Database__PasswordFile: /run/secrets/identity-api-password
       Jwt__Issuer: ${SHIPWISE_JWT_ISSUER:?Set SHIPWISE_JWT_ISSUER}
       Jwt__Audience: ${SHIPWISE_JWT_AUDIENCE:?Set SHIPWISE_JWT_AUDIENCE}
-      Jwt__AccessTokenExpirationMinutes: "15"
+      Jwt__AccessTokenExpirationMinutes: "10"
       ForwardedHeaders__KnownNetworks__0: ${SHIPWISE_HTTP_NETWORK:?Set SHIPWISE_HTTP_NETWORK}
       AllowedHosts: "localhost;127.0.0.1;identity-api;${SHIPWISE_GATEWAY_PUBLIC_HOST:?Set SHIPWISE_GATEWAY_PUBLIC_HOST}"
       Cors__AllowedOrigins__0: ${SHIPWISE_FRONTEND_ORIGIN:?Set SHIPWISE_FRONTEND_ORIGIN}

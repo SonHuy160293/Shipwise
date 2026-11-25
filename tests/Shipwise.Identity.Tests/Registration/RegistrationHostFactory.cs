@@ -12,7 +12,7 @@ public sealed class RegistrationHostFactory(string? connectionString = null, boo
         builder.UseSetting("Jwt:SecretKey", "test-only-signing-key-0123456789-abcdef");
         builder.UseSetting("Jwt:Issuer", "shipwise-tests");
         builder.UseSetting("Jwt:Audience", "shipwise-tests");
-        builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "5");
+        builder.UseSetting("Jwt:AccessTokenExpirationMinutes", "10");
         builder.UseSetting("IntegrationApi:ApiKeys:0", "test-only-integration-key");
         builder.UseSetting("Registration:Enabled", enabled.ToString());
     }

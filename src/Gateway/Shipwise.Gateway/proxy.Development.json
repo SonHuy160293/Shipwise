@@ -1,6 +1,38 @@
 {
   "ReverseProxy": {
     "Routes": {
+      "sign-in": {
+        "ClusterId": "identity",
+        "Match": { "Path": "/api/v1/auth/sign-in", "Methods": [ "POST" ] },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Metadata": { "CacheControl": "no-store" },
+        "Transforms": [ { "X-Forwarded": "Set", "Prefix": "Remove" }, { "RequestHeaderRemove": "Forwarded" } ]
+      },
+      "refresh": {
+        "ClusterId": "identity",
+        "Match": { "Path": "/api/v1/auth/refresh", "Methods": [ "POST" ] },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Metadata": { "CacheControl": "no-store" },
+        "Transforms": [ { "X-Forwarded": "Set", "Prefix": "Remove" }, { "RequestHeaderRemove": "Forwarded" } ]
+      },
+      "sign-out": {
+        "ClusterId": "identity",
+        "Match": { "Path": "/api/v1/auth/sign-out", "Methods": [ "POST" ] },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Metadata": { "CacheControl": "no-store" },
+        "Transforms": [ { "X-Forwarded": "Set", "Prefix": "Remove" }, { "RequestHeaderRemove": "Forwarded" } ]
+      },
+      "account": {
+        "ClusterId": "identity",
+        "Match": { "Path": "/api/v1/account", "Methods": [ "GET" ] },
+        "Timeout": "00:00:30",
+        "MaxRequestBodySize": 16384,
+        "Metadata": { "CacheControl": "no-store" },
+        "Transforms": [ { "X-Forwarded": "Set", "Prefix": "Remove" }, { "RequestHeaderRemove": "Forwarded" } ]
+      },
       "register": {
         "ClusterId": "identity",
         "Match": { "Path": "/api/v1/auth/register", "Methods": [ "POST" ] },
