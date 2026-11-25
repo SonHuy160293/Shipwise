@@ -150,7 +150,9 @@ Rules that follow:
   `[PermissionAuthorize("<Function>", ActionType.<Action>)]` with the function name the
   spec gives: a token alone is not permission. Never invent a permission name, and never
   use `PublicApiController` or `[AllowAnonymous]` unless the spec says the endpoint is
-  public.
+  public. For an action explicitly approved by its spec to operate only on the caller's
+  own account, use `[AuthenticatedUserOnly]` in place of `[PermissionAuthorize]`.
+  The inherited authorization and the handler's ownership check both apply.
 - An attribute is not tenant isolation. Every handler also filters by the caller's
   organization in the query itself, and the tests prove another organization gets 404.
 - Routes come from the base class: `api/v{version}/[controller]`. Ids come from the route,
@@ -264,7 +266,8 @@ never log message payloads.
 
 - [ ] Files, names and project references follow section 2; no forbidden package added
 - [ ] Controller is thin, derives from the right base class and has a `[PermissionAuthorize]`
-      per action; any anonymous endpoint is named in the spec
+      per action or the spec-approved `[AuthenticatedUserOnly]` marker for the caller's own
+      account. The spec names each anonymous endpoint.
 - [ ] Failures are thrown, never returned; actions check `IsFailure` before `Value`; status codes follow section 4 and
       match the spec and `[ProducesResponseType]`
 - [ ] Validation errors carry field names; error codes come from `<Resource>Errors`

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Shipwise.AspNetCore.Options;
 using Shipwise.SharedKernel.Abstractions.Shared;
 using Shipwise.SharedKernel.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +18,17 @@ public sealed class CustomJwtBearerEvents : JwtBearerEvents
     public CustomJwtBearerEvents(ILogger<CustomJwtBearerEvents> logger)
     {
         _logger = logger;
+    }
+
+    public override Task MessageReceived(MessageReceivedContext context)
+    {
+        if (!context.Request.Headers.ContainsKey("Authorization"))
+        {
+            var cookies = context.HttpContext.RequestServices.GetRequiredService<AuthCookieOptions>();
+            context.Token = context.Request.Cookies[cookies.AccessName];
+        }
+
+        return Task.CompletedTask;
     }
 
     public override Task AuthenticationFailed(AuthenticationFailedContext context)

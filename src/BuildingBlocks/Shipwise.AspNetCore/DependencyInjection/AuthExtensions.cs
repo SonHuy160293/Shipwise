@@ -36,6 +36,7 @@ public static class AuthExtensions
     public static IServiceCollection AddConfiguredAuthentication(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
+        services.TryAddSingleton(new AuthCookieOptions(!string.Equals(environment.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase)));
 
         services
             .AddOptions<JwtOptions>()
