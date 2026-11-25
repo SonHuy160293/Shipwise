@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Shipwise.EntityFrameworkCore.Repositories;
 using Shipwise.Identity.Application.Abstractions.Repositories;
 using Shipwise.Identity.Domain.Models;
@@ -10,4 +11,7 @@ public sealed class PasswordCredentialRepository(IdentityDbContext context)
 {
     public Task AddAsync(PasswordCredential credential, CancellationToken cancellationToken)
         => AddEntityAsync(credential, cancellationToken);
+
+    public Task<PasswordCredential?> FindAsync(Guid userId, CancellationToken cancellationToken)
+        => TrackedQuery(credential => credential.UserId == userId).SingleOrDefaultAsync(cancellationToken);
 }

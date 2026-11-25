@@ -4,9 +4,17 @@ using Shipwise.Identity.Domain.Models;
 
 namespace Shipwise.Identity.Infrastructure.Security;
 
-public sealed class PasswordHashService : IPasswordHashService
+public sealed class PasswordHashService(IPasswordHasher<User> hasher) : IPasswordHashService
 {
-    private readonly PasswordHasher<User> _hasher = new();
+    private static readonly User DummyUser = User.Create("unused@example.invalid", "Unused");
+    private static readonly string DummyHash = new PasswordHasher<User>().HashPassword(DummyUser, Guid.NewGuid().ToString());
 
-    public string Hash(User user, string password) => _hasher.HashPassword(user, password);
+    public string Hash(User user, string password) => hasher.HashPassword(user, password);
+
+    public bool Verify(User? user, string? storedHash, string password, out bool rehashNeeded)
+    {
+        var result = hasher.VerifyHashedPassword(user ?? DummyUser, storedHash ?? DummyHash, password);
+        rehashNeeded = result == PasswordVerificationResult.SuccessRehashNeeded;
+        return user is not null && storedHash is not null && result != PasswordVerificationResult.Failed;
+    }
 }

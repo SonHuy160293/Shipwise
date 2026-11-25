@@ -17,6 +17,8 @@ public sealed class PasswordCredential : Entity
     public Guid UserId { get; private set; }
     public string PasswordHash { get; private set; } = null!;
 
+    public void UpgradeHash(string passwordHash) => PasswordHash = passwordHash;
+
     public static PasswordCredential Create(Guid userId, string passwordHash)
     {
         Guard.Id(userId, "userId");

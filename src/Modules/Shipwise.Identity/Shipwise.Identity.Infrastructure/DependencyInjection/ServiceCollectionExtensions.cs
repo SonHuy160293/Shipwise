@@ -1,16 +1,20 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Shipwise.EntityFrameworkCore.Interceptors;
 using Shipwise.Identity.Application.Abstractions.Repositories;
 using Shipwise.Identity.Application.Abstractions.Security;
+using Shipwise.Identity.Domain.Models;
 using Shipwise.Identity.Infrastructure.Persistence.Core;
 using Shipwise.Identity.Infrastructure.Persistence.DbContexts;
 using Shipwise.Identity.Infrastructure.Persistence.Repositories;
 using Shipwise.Identity.Infrastructure.Security;
 using Shipwise.SharedKernel.Abstractions.Persistence;
+using Shipwise.SharedKernel.Security;
 
 namespace Shipwise.Identity.Infrastructure.DependencyInjection;
 
@@ -24,6 +28,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordCredentialRepository, PasswordCredentialRepository>();
         services.AddScoped<IPasswordHashService, PasswordHashService>();
+        services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
+        services.AddScoped<IAuthenticatedContextValidator, SessionContextValidator>();
+        services.AddSingleton<IAccessTokenIssuer, AccessTokenIssuer>();
+        services.AddSingleton<IRefreshTokenCodec, RefreshTokenCodec>();
+        services.AddMemoryCache();
+        services.AddSingleton<ISignInThrottle, MemorySignInThrottle>();
+        services.AddOptions<SessionOptions>().Bind(configuration.GetSection("Session"))
+            .Validate(
+                o => o.IdleTimeoutDays > 0 && o.AbsoluteTimeoutDays > 0 && o.RefreshGraceSeconds > 0,
+                "Session lifetimes must be positive.").ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<SessionOptions>>().Value);
         return services;
     }
 
