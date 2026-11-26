@@ -374,6 +374,11 @@ No open questions.
   changes.
 - 2026-11-21: References to "spec 0002" for sign-in now say "the sign-in spec", because
   spec 0002 became containers and the local stack. No behavior changes.
+- 2026-11-26, ADR 0007: Gemini no longer has a role. Task 3 was delivered by Gemini in
+  Shipwise-Web commit `fa4d11d`, so its row and the ownership note under the task table
+  are history. Any further work on those paths belongs to Codex, through a new spec or
+  the small change lane. The spec is closed, with its delivery record, once the owner
+  confirms the integration check.
 
 ## Delivery record
 

@@ -369,12 +369,9 @@ sequenceDiagram
   G->>I: forward
   I->>I: origin check (403 if not allowed)
   I->>I: parse <sessionId>.<secret>, hash secret
-  I->>D: load session by Id
+  I->>D: load session by Id with FOR UPDATE (a concurrent refresh waits here)
   alt hash = current and session active
     I->>D: rotate (new hash, previous = old, idle deadline moved), save with xmin check
-    alt concurrency conflict
-      I->>D: reload once, then the grace branch
-    end
     I-->>B: 200, new access cookie, new refresh cookie
   else hash = previous and rotated < 30 s ago
     I-->>B: 200, new access cookie, refresh cookie untouched

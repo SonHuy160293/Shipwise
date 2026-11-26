@@ -110,7 +110,8 @@ acceptance criterion; and nothing needs a token that `DESIGN.md` lacks. A new to
 
 `docs/specs/NNNN-slug.md`, numbered after the highest existing spec, with
 `Status: draft | approved | done`. Only a human sets `approved`; implementers start only
-from approved specs. Commits for the spec carry `Spec: NNNN task N` (commit rule in
+from approved specs. Task commits carry `Spec: NNNN task N`; your own commits to the spec carry
+`Spec: NNNN (<what>)`, such as `(approved)` or `(change log)` (commit rule in
 `docs/workflow.md`).
 
 ## Template

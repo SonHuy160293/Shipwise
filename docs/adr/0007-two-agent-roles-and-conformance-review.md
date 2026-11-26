@@ -58,7 +58,8 @@ Option B.
    For a high-risk task (authentication, tenancy, permissions, personal data, a
    destructive migration) it also reads a short risk checklist: authentication fails
    closed; no secret or personal data reaches a log, trace or response it should not;
-   every action has `[PermissionAuthorize]` or `[AuthenticatedUserOnly]`; the migration
+   every action has `[PermissionAuthorize]` or `[AuthenticatedUserOnly]`, or is a
+   `PublicApiController` action the spec marks public; the migration
    is not destructive, or the owner approved it; organization-owned data has its
    cross-organization tests.
 

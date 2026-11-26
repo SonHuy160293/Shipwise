@@ -98,8 +98,11 @@ Verified: scripts/Verify-Platform.ps1 PASSED
   `contract`, `spec`, `workflow`, `agents`.
 - `summary`: imperative, lowercase start, no period; the whole first line is at most 72
   characters. It says what the change does, not "update" or "fix stuff".
-- `Spec:` is required. A small change writes `Spec: none (small change)` and omits
-  `Covers:`.
+- `Spec:` is required. A task commit writes `Spec: NNNN task N`. A small change writes
+  `Spec: none (small change)` and omits `Covers:`. A planner's commit to a spec or its
+  design proposal (draft, approval, change log, closing) writes `Spec: NNNN (<what>)`,
+  for example `Spec: 0003 (change log)`, and omits `Covers:` unless it maps criteria to
+  screens, as a design proposal does.
 - `Verified:` lists every command actually run with `PASSED` or `FAILED`. Add
   `Not-run: <command>, <reason>` for anything required that was not run, and
   `Deviations: <what and the spec change log line that approved it>` when the change
