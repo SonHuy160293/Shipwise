@@ -65,9 +65,11 @@ rule is in docs/workflow.md.
   logical change per commit; stage explicit paths, never `git add -A`.
 - Message: `<type>(<scope>): <summary>` in at most 72 characters (types: feat, fix,
   refactor, perf, test, docs, build, ci, chore), a body saying what and why, then the
-  trailers `Spec: NNNN task N` (or `Spec: none (small change)`, or `Spec: NNNN (<what>)` for a
-  planner's spec commit, as docs/workflow.md says), `Covers: AC-n, ...` and
-  `Verified: <command> PASSED|FAILED; ...`. Add `Not-run:`, `Deviations:` and
+  trailers `Spec: NNNN task N`, `Covers: AC-n, ...` and
+  `Verified: <command> PASSED|FAILED; ...`. A small change writes
+  `Spec: none (small change)` and a planner's spec or design proposal commit writes
+  `Spec: NNNN (<what>)`; both omit `Covers:` except a design proposal that maps criteria
+  to screens (docs/workflow.md). Add `Not-run:`, `Deviations:` and
   `Migration:` lines when they apply. Never write PASSED for a command you did not run.
 - Never amend, rebase or force-push pushed commits, and never use `--no-verify`; fix
   forward with a new commit.
