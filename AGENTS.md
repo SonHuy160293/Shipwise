@@ -40,16 +40,19 @@ change lane: a change that touches no API contract, database schema, permission 
 approved screen behavior, and stays inside one role's paths, needs no spec, only a
 focused test, a commit under the commit rule and a review.
 
-- Claude Code (planner, BA, solution architect, tech lead): writes specs, ADRs and task
-  tables, and reviews every change before it is pushed. Does not write product code.
-- Codex (fullstack developer): everything in this repository, plus the Shipwise-Web data
-  layer (generated contract, feature API hooks and schemas). Start Codex here with
-  `codex --add-dir ../Shipwise-Web` when a task spans both repositories.
-- Gemini (frontend developer and designer): works in Shipwise-Web only; it reads specs
-  and the contract from this repository but never edits it.
-- Order within a feature: challenge brief, draft spec, Gemini's design proposal for new
-  pages, the approved spec, then the backend + contract task, then the frontend tasks,
-  each reviewed by Claude with the review-change skill before it is pushed.
+Two agents ([ADR 0007](docs/adr/0007-two-agent-roles-and-conformance-review.md)):
+
+- Claude Code (planner, BA, solution architect, decision support for the owner): writes
+  challenge briefs, specs (including the screens in "UI and states"), ADRs, task tables
+  and decision requests, and does the conformance review of every change before it is
+  pushed. Does not write product code.
+- Codex (fullstack developer): implements every task in both repositories: backend,
+  contract, the Shipwise-Web data layer, screens, layouts, styles and end-to-end tests.
+  Start Codex here with `codex --add-dir ../Shipwise-Web` when a task spans both
+  repositories.
+- Order within a feature: challenge brief, draft spec, the approved spec, then the
+  backend + contract task, then the frontend tasks, each checked by Claude with the
+  review-change skill before it is pushed.
 
 ## Commit rule
 
@@ -74,7 +77,7 @@ rule is in docs/workflow.md.
 
 Stop the affected task and write a decision request (context, options, recommendation,
 impact, safe default) instead of guessing when: a requirement is missing or contradicts
-another; the spec conflicts with the code, the contract or the design proposal; you find
+another; the spec conflicts with the code, the contract or DESIGN.md; you find
 a cross-organization access, data-loss or destructive-migration risk; the task needs
 paths it does not own; or the scope, dependencies or rollout risk grow beyond the spec.
 The safe default is not to implement the contested behavior. Never fix a spec or

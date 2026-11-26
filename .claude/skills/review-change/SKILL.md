@@ -1,95 +1,60 @@
 ---
 name: review-change
-description: Review a Shipwise or Shipwise-Web change as the tech lead before it is pushed, against its spec, the ownership rules, the commit rule and the definition of done. Use when the user asks to review commits, a task's changes, a diff or an agent's work (Codex or Gemini), to recheck fixes after a review, or to decide whether a change can be pushed. Produces findings labeled BLOCKER, MAJOR, MINOR or SUGGESTION with evidence, and a verdict. Read-only: never fixes the code itself.
+description: Conformance review of a Shipwise or Shipwise-Web change before it is pushed - checks that Codex's commits follow the approved spec and task, the ownership rules and the commit rule, plus a short risk checklist for high-risk tasks. Read-only and runs no command; testing is the author's run and CI. Use when the user asks to review commits, a task's changes or Codex's work, to recheck fixes after a review, or to decide whether a change can be pushed. Produces BLOCKER and NOTE findings with evidence, and a verdict.
 ---
 
-# Review a Shipwise change
+# Conformance review of a Shipwise change
 
-You are the reviewer (tech lead). You did not write this change and you do not fix it:
-findings go back to the author, the author fixes in new commits, you recheck, the human
-pushes. Judge the change against what was approved, not against what you would have built.
+You check that the change follows the plan, not how well it is built ([ADR 0007](../../../docs/adr/0007-two-agent-roles-and-conformance-review.md)).
+You do not run tests, builds, the app or Playwright: the author's "Done when" run and CI
+are the test gates. You do not fix anything: findings go back to the author, who fixes
+them in new commits; you recheck; the human pushes. Keep the review short.
 
-There are no pull requests in this phase (`docs/workflow.md`): the unit of review is the
-set of commits of one task, normally the unpushed commits on `main`.
+The unit of review is the commits of one task, normally the unpushed commits on `main`.
 
 ## 1. Gather
 
-- The commits: `git fetch`, then `git log --stat origin/main..HEAD` and
-  `git diff origin/main..HEAD` in the repository under review. When the user names a
-  range or the commits are already pushed, use that range instead and say so. Read every
-  changed file in full where the diff alone hides context.
-- `git status`: uncommitted changes are not part of the review; report them.
-- The author's handoff report, if the user passes it on (commands run, anything skipped,
-  open questions, the SQL script for a migration).
-- The spec and task named in the commits' `Spec:` trailer (`docs/specs/NNNN-slug.md` in
-  the backend repository): the task row, the acceptance criteria in its "Covers" column,
-  and the API contract, database design and "UI and states" sections it touches. For
+- The commits: `git log --stat <range>` and `git diff <range>` in the repository under
+  review, with the range the coordinator or the user gives (default
+  `origin/main..HEAD`). Read a whole file only where the diff hides what you must check.
+- `git status`: uncommitted changes are not part of the review; mention them.
+- The author's handoff report, if given.
+- The spec and task named in the `Spec:` trailer (`docs/specs/NNNN-slug.md` in
+  Shipwise): the task row, the criteria in its "Covers" column, the change log, and the
+  API contract, database design and "UI and states" sections the task touches. For
   `Spec: none (small change)`, check the lane limits in `docs/workflow.md` instead.
-- Both `AGENTS.md` files, and for the frontend `DESIGN.md` and the design proposal named
-  in the spec header.
 
 ## 2. Check
 
-**Commit rule** (`docs/workflow.md`)
-- Each message is `<type>(<scope>): <summary>` within 72 characters, with a body and the
-  `Spec:`, `Covers:` and `Verified:` trailers; `Migration:`, `Not-run:` and `Deviations:`
-  where they apply.
-- One logical change per commit; no unrelated files, secrets or generated output; no
-  commit that leaves the build or tests broken.
-- No pushed commit was amended or rebased.
+1. **Paths.** Every changed path is inside the task's Paths. A small change touches no
+   API contract, database schema, permission rule or approved screen behavior; otherwise
+   `BLOCKER: needs a spec`.
+2. **Criteria.** Each covered acceptance criterion has an implementation and at least one
+   test that clearly targets it (by name or by what it asserts). Read; do not run.
+3. **Contract and data.** Endpoints, status codes, error codes and fields match the spec's
+   API contract, and the committed OpenAPI document changed with them. Tables, columns,
+   indexes and constraints match the spec's database design.
+4. **Screens.** Each route and state the spec's "UI and states" lists has code that
+   renders it. No visual judgment.
+5. **Deviations.** Anything that departs from the spec is in a `Deviations:` trailer and
+   in the spec's change log. An undeclared deviation is a `BLOCKER`, even if it looks
+   better.
+6. **Commit rule.** Message format and trailers; `Verified:` lists every "Done when"
+   command of the task as `PASSED`; nothing required is `Not-run`; no skipped
+   infrastructure test is reported. You check the claim is complete, not that it is true.
+7. **Risk checklist, high-risk tasks only** (authentication, tenancy, permissions,
+   personal data, destructive migration):
+   - authentication fails closed;
+   - no password, token, secret or personal data in logs, traces, metrics or exception
+     messages, and none in a response body the spec does not list;
+   - every API action has `[PermissionAuthorize]` or `[AuthenticatedUserOnly]` (or is a
+     `PublicApiController` action the spec marks public);
+   - a migration drops or rewrites nothing, or the spec records the owner's approval;
+   - organization-owned data has the permission-denied and cross-organization tests.
 
-**Scope and ownership**
-- Every changed path is inside the task's "Paths" and the author's role; nothing unrelated
-  rides along.
-- A small change really is small: no API contract, database schema, permission rule or
-  approved screen behavior changed. Otherwise the finding is `BLOCKER: needs a spec`.
-- Deviations from the spec are declared in a `Deviations:` trailer and were approved (the
-  spec's change log has the line). An undeclared deviation is a blocker even when it looks
-  better.
-
-**Spec conformance**
-- Each covered acceptance criterion has an implementation and a test that would fail
-  without it.
-- The API matches the spec's contract and the committed OpenAPI document, including status
-  codes, error shape and nullability.
-- The database matches the spec's "Database design" exactly.
-
-**Backend** (Shipwise)
-- `AGENTS.md` rules: BuildingBlocks references, CQRS pipeline order and transaction
-  ownership, no MediatR, auth fails closed, telemetry privacy, cancellation tokens passed
-  through, no credentials or sensitive payloads logged.
-- A new module or host: every item of the module-skeleton checklist (section 8 of
-  `.agents/skills/module-skeleton/SKILL.md`); nothing business-specific rides along.
-- Application and API code: every item of the cqrs-api checklist (section 10 of
-  `.agents/skills/cqrs-api/SKILL.md`), in particular a `[PermissionAuthorize]` on every action, failures thrown not returned,
-  status codes per its section 4, and no save or commit in handlers.
-- Database changes: every item of the ef-migrations checklist (section 7 of
-  `.agents/skills/ef-migrations/SKILL.md`). Read the idempotent SQL script from the
-  handoff report, or generate it yourself with the command in section 4.
-- Authorization and organization isolation on every endpoint, handler and query the change
-  adds or touches; the mandatory permission-denied and cross-organization tests exist.
-- Writes are idempotent where the spec says so; concurrent edits are handled; each query
-  has the index the spec names.
-
-**Frontend** (Shipwise-Web)
-- `AGENTS.md` rules: boundaries, strict TypeScript, generated contracts never hand-edited,
-  no invented endpoints or fields, server state in TanStack Query.
-- Rendered behavior against the spec's "UI and states" and the design proposal. Judge
-  visuals by running the app or the Playwright suite and looking at the screenshots, never
-  from reading code alone. Check each state the spec lists, at 375, 768 and 1440px.
-- Keyboard access, visible focus, labels, reduced motion; the impeccable detect result is
-  clean or each finding is triaged.
-
-**Evidence**
-- The `Verified:` trailers and handoff report are the author's claim, not proof. The
-  commits are not pushed, so CI has not run: run the task's "Done when" commands yourself
-  on the reviewed `HEAD` and report exactly what you ran and the result.
-- A required command the author marked `Not-run`, a failing command, or a skipped
-  infrastructure test is a blocker. Never state that something passes without having seen
-  it pass.
-
-For a deeper correctness pass on a large diff, run the built-in code-review skill and fold
-its confirmed findings into your table.
+Out of scope: code style, naming, refactoring ideas, performance, and bugs these checks
+do not reveal. Mention something outside them only if it is plainly a security or
+data-loss risk, as a `NOTE`.
 
 ## 3. Report
 
@@ -97,33 +62,20 @@ its confirmed findings into your table.
 ## Review: <repo> <first>..<last> (spec NNNN, task N)
 **Verdict:** ready to push | changes requested | needs a spec change
 
-| # | Severity | Where | Finding | Rule or criterion | Suggested fix |
-|---|---|---|---|---|---|
-| 1 | BLOCKER | src/...:42 | ... | AC-3 | ... |
-
-**Verified by me:** <commands you ran and their results, or "none">
-**Not verified:** <what you could not check and why>
+| # | Severity | Where | Finding | Check or criterion |
+|---|---|---|---|---|
+| 1 | BLOCKER | src/...:42 | ... | AC-3 / Paths / Commit rule |
 ```
 
-Severities:
-- `BLOCKER`: wrong behavior, a security or data-loss risk, a spec or ownership violation,
-  or missing required evidence. Must be fixed before the push.
-- `MAJOR`: should be fixed before the push, for example a criterion without a real test or
-  an unhandled failure path.
-- `MINOR`: small correctness or maintainability issue, including commit message format;
-  the author may fix it now or record a follow-up.
-- `SUGGESTION`: optional improvement.
+- `BLOCKER`: a failed check above. Must be fixed before the push.
+- `NOTE`: optional, or a follow-up for the planner.
+- "ready to push" means no open `BLOCKER`.
 
 ## Rules
 
-- Every finding cites a file and line (or a commit) and the rule or acceptance criterion
-  it breaks. No finding without evidence, and no praise padding.
-- Do not ask for work beyond the spec. Ideas that widen the scope are a `SUGGESTION` or a
-  follow-up, never a condition for the push.
-- A flaw in the spec itself is not a review fix: the verdict is "needs a spec change", and
-  the planner amends the spec through its change log.
-- Fixes come as new commits. Rechecking: review only the new commits and close or keep
-  each earlier finding by number.
-- You never edit the author's code, never amend their commits and never push; the human
-  pushes after "ready to push". If you wrote any part of the change, say so and ask for a
-  different reviewer.
+- Every finding cites a file and line (or a commit) and the check or criterion it fails.
+- Do not ask for work beyond the spec.
+- A flaw in the spec itself is not a code fix: the verdict is "needs a spec change".
+- Rechecking: read only the new commits, and close or keep each earlier finding by number.
+- Never edit code, amend commits or push. If you wrote any part of the change, say so and
+  ask for a different reviewer.

@@ -1,6 +1,6 @@
 ---
 name: write-spec
-description: Challenge, research and then write a Shipwise feature spec in docs/specs that Codex (fullstack) and Gemini (frontend and design) can implement without guessing. Use when the user shares an idea, requirement, feature, user story, change request or vertical slice to plan, or asks for requirements, acceptance criteria, a task breakdown or a spec. Always starts with a challenge brief (reasonableness check, real-world research, alternatives, questions) before any spec text. Not for architecture decisions on their own; those are ADRs in docs/adr.
+description: Challenge, research and then write a Shipwise feature spec in docs/specs that Codex (fullstack) can implement without guessing. Use when the user shares an idea, requirement, feature, user story, change request or vertical slice to plan, or asks for requirements, acceptance criteria, a task breakdown or a spec. Always starts with a challenge brief (reasonableness check, real-world research, alternatives, questions) before any spec text. Not for architecture decisions on their own; those are ADRs in docs/adr.
 ---
 
 # Write a Shipwise spec
@@ -96,20 +96,15 @@ answers into the spec; anything still unanswered becomes a recorded assumption u
 default you stated. The process around the spec (lanes, gates, who decides) is in
 `docs/workflow.md`; a change that fits its small change lane needs no spec.
 
-### Design proposal before approval
+### Screens before approval
 
-When the feature adds or changes screens, check the depth table in `docs/workflow.md`. If
-it asks for a proposal, do not finalize "UI and states" yourself:
-
-1. Write the draft spec with stories, acceptance criteria and a first API contract.
-2. Give the user this handoff for Gemini, run in `../Shipwise-Web`: "Read spec NNNN in
-   ../Shipwise/docs/specs and docs/design/proposals/README.md. Write the design proposal
-   for it in docs/design/proposals/NNNN-slug/. Do not change production code."
-3. When the proposal exists, reconcile it into the spec: every screen and state is in
-   "UI and states"; every field a screen shows or sends exists in the API contract; every
-   action maps to an endpoint and an acceptance criterion; nothing needs a token that
-   `DESIGN.md` lacks. Raise each mismatch with the user instead of choosing silently.
-4. Record the proposal path and commit in the spec header, then ask for approval.
+There is no separate design proposal (ADR 0007). When the feature adds or changes
+screens, write "UI and states" yourself at the depth the table in `docs/workflow.md`
+asks for, from `../Shipwise-Web/DESIGN.md` and the existing pages it resembles. Before
+asking for approval, check that every screen and state is listed; every field a screen
+shows or sends exists in the API contract; every action maps to an endpoint and an
+acceptance criterion; and nothing needs a token that `DESIGN.md` lacks. A new token or a
+`DESIGN.md` change is a question for the user, never a silent choice.
 
 ## File
 
@@ -123,7 +118,7 @@ from approved specs. Commits for the spec carry `Spec: NNNN task N` (commit rule
 ````markdown
 # NNNN Title
 
-Status: draft · Owner: Claude Code · Related ADRs: none · Design proposal: none
+Status: draft · Owner: Claude Code · Related ADRs: none
 
 ## Problem and outcome
 Who has the problem, what they can do after this ships, and how we will know.
@@ -214,8 +209,8 @@ approval before the spec is approved.
 Routes, screens and components; for each screen the states that apply: loading, empty,
 success, validation error, request failure with retry, submitting or disabled, and
 permission-denied; responsive behavior at 375/768/1440px; accessibility notes. Reference
-DESIGN.md tokens; no new tokens without a human-approved DESIGN.md change. Built from the
-design proposal when docs/workflow.md asks for one.
+DESIGN.md tokens; no new tokens without a human-approved DESIGN.md change. Depth as the
+table in docs/workflow.md asks; this section is the design.
 
 ## Test plan
 | Criterion | Test (type and where) |
@@ -232,8 +227,8 @@ organization can neither read nor change the data (backend tests, not only UI ch
 |---|-------|------|-------|--------|------------|----------------------|
 | 1 | Codex | Shipwise | src/Modules/<Name>/**, contracts/openapi/** | AC-1, AC-3 | - | scripts/Verify-Platform.ps1 passes |
 | 2 | Codex | Shipwise-Web | src/lib/api/**, src/features/<name>/api/** | AC-1 | 1 | npm run check passes |
-| 3 | Gemini | Shipwise-Web | src/features/<name>/components/**, pages/** | AC-1, AC-2 | 2 | npm run check, npm run test:e2e, impeccable detect clean |
-| 4 | Claude Code | both | review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
+| 3 | Codex | Shipwise-Web | src/features/<name>/components/**, pages/** | AC-1, AC-2 | 2 | npm run check, npm run test:e2e, impeccable detect clean |
+| 4 | Claude Code | both | conformance review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
 
 ## Assumptions and open questions
 
@@ -258,8 +253,8 @@ date the human confirmed the integration check, deferred follow-ups.
 
 ## Rules for the task table
 
-- Follow the ownership rules in both `AGENTS.md` files: Codex owns the backend and the
-  frontend data layer; Gemini owns frontend presentation; Claude reviews.
+- Follow the ownership rules in both `AGENTS.md` files: Codex implements every task in
+  both repositories; Claude plans and does the conformance review.
 - No two tasks that can run at the same time share a path. Shared hot files
   (`Directory.Packages.props`, `Shipwise.slnx`, `package.json`/`package-lock.json`,
   `src/app/router/**`, `DESIGN.md`, `src/styles/globals.css`) belong to exactly one task.

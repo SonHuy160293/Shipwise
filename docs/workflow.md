@@ -26,22 +26,23 @@ A small change that grows past its limits stops and goes back to the planner for
 | # | Step | Who | Output | Gate |
 |---|---|---|---|---|
 | 1 | Challenge brief | Claude Code | Brief in chat (write-spec step 1) | **Gate 1:** the human resolves blockers and picks an approach |
-| 2 | Draft spec | Claude Code | `docs/specs/NNNN-slug.md`, status `draft` | |
-| 3 | Design proposal, when the table below asks for one | Gemini | `Shipwise-Web/docs/design/proposals/NNNN-slug/` | |
-| 4 | Reconcile design, API contract and data model in the spec | Claude Code | Updated spec | **Gate 2:** the human sets `approved` |
-| 5 | Backend, contract and frontend data layer | Codex | Local commits on `main` | **Gate 3:** review-change has no open blocker, then the human pushes and CI is green |
-| 6 | Frontend screens | Gemini | Local commits on `main` | **Gate 3** |
-| 7 | Integration check of the frontend against the real backend | Human | Manual | |
-| 8 | Close | Claude Code | Spec status `done` with its delivery record | |
+| 2 | Draft spec, including the screens in "UI and states" | Claude Code | `docs/specs/NNNN-slug.md`, status `draft` | |
+| 3 | Reconcile UI, API contract and data model in the spec | Claude Code | Updated spec | **Gate 2:** the human sets `approved` |
+| 4 | Backend, contract and frontend data layer | Codex | Local commits on `main` | **Gate 3:** the conformance review has no open blocker, then the human pushes and CI is green |
+| 5 | Frontend screens | Codex | Local commits on `main` | **Gate 3** |
+| 6 | Integration check of the frontend against the real backend | Human | Manual | |
+| 7 | Close | Claude Code | Spec status `done` with its delivery record | |
 
-Design proposal depth:
+Claude Code plans and reviews; Codex implements everything
+([ADR 0007](adr/0007-two-agent-roles-and-conformance-review.md)). There is no separate
+design proposal step: the spec's "UI and states" section is the design, at this depth.
 
-| Change | Proposal |
+| Change | "UI and states" holds |
 |---|---|
-| Text or small style change | None |
-| Basic form or list that follows an existing page pattern | User flow and the list of screen states, in Markdown |
-| New page or dashboard | The above plus layout for 375, 768 and 1440px |
-| Complex multi-step flow or board | The above plus a standalone HTML prototype with mock data |
+| Text or small style change | Nothing (small change lane) |
+| Basic form or list that follows an existing page pattern | The user flow and the table of screen states |
+| New page or dashboard | The above plus layout notes for 375, 768 and 1440px |
+| Complex multi-step flow or board | The above plus a wireframe per step (Mermaid or text) |
 
 ## Who decides
 
@@ -127,7 +128,7 @@ any deviation or open question.
 Stop the affected task and write a decision request instead of guessing when:
 
 - a requirement is missing, or two requirements contradict each other;
-- the spec conflicts with the code, the API contract or the design proposal;
+- the spec conflicts with the code, the API contract or `DESIGN.md`;
 - you find a cross-organization access, data-loss or destructive-migration risk;
 - the task needs paths outside the ones it owns, or the working tree has someone else's
   uncommitted changes;
@@ -148,9 +149,11 @@ Never fix a spec or contract inconsistency silently in code and document it afte
 
 ## Review
 
-- Claude Code reviews the unpushed commits of a task with the review-change skill
-  (`git log origin/main..HEAD`) and labels findings `BLOCKER`, `MAJOR`, `MINOR` or
-  `SUGGESTION`.
+- Claude Code reviews the unpushed commits of a task with the review-change skill. It is
+  a conformance review: it checks that the commits follow the spec, the task's paths and
+  the commit rule (plus a risk checklist for high-risk tasks), labels findings `BLOCKER`
+  or `NOTE`, and runs no command. The author's "Done when" run and CI are the test gates
+  ([ADR 0007](adr/0007-two-agent-roles-and-conformance-review.md)).
 - The author fixes in new commits; the reviewer rechecks; the reviewer never edits the
   code or widens the scope.
 - A change is pushed only with no open blocker.
@@ -214,8 +217,9 @@ orca orchestration worker-start --environment local --task <r1 id> --worktree cu
   primary checkout's workspace, which the human gives. If it does not resolve, stop and
   ask the human; never fall back to another workspace.
 - No worker creates a worktree or a branch.
-- Agent per owner: Codex `--agent codex`, Gemini `--agent gemini`, reviews
-  `--agent claude`. Pass `--model` or `--effort` only when the human names them.
+- Implementation tasks: `--agent codex`. Reviews: `--agent claude --model
+  claude-sonnet-5-5 --effort low`, the owner's standing choice (ADR 0007). Pass any other
+  `--model` or `--effort` only when the human names them.
 
 **Task spec** (one file per task, passed with `--spec-file`; the first line is the title)
 
@@ -236,7 +240,7 @@ Shipwise-Web. A review task names the implementation task and its commits, runs 
 review-change rules on them read-only, and reports the review in `worker_done`;
 `succeeded` means the review was completed, whatever the verdict.
 
-**Workers (Codex, Gemini, Claude as reviewer)**
+**Workers (Codex, Claude as reviewer)**
 - Follow the dispatch preamble and the repository's `AGENTS.md`.
 - Stop and ask: send the decision request with `orca orchestration ask`, then end the
   turn and wait for the answer.
@@ -306,7 +310,7 @@ skill.
 | Why a durable technical choice was made | `docs/adr` |
 | The HTTP contract | `contracts/openapi/shipwise.v1.json` |
 | Visual identity and tokens | `Shipwise-Web/DESIGN.md` |
-| Screen flow and states of a feature | The spec's "UI and states" section, built from the design proposal |
+| Screen flow and states of a feature | The spec's "UI and states" section |
 | What actually shipped | Git history on `main` |
 | What was verified | CI results and each commit's `Verified:` line |
 
