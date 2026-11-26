@@ -564,12 +564,12 @@ No organization-owned data is involved, so the cross-organization tests do not a
 |---|-------|------|-------|--------|------------|----------------------|
 | 1 | Codex | Shipwise | `src/Modules/Shipwise.Identity/**`, `tests/Shipwise.Identity.Tests/**`, `src/BuildingBlocks/Shipwise.AspNetCore/**` (cookie token reading, origin check, cookie options, `[AuthenticatedUserOnly]`), `tests/Shipwise.Foundation.Tests/**` for those, `src/Gateway/Shipwise.Gateway/proxy.Development.json`, `contracts/openapi/**`, `deploy/**` (settings only), `.agents/skills/cqrs-api/SKILL.md` (the marker rule), `README.md`, `ARCHITECTURE.md` | AC-1 to AC-17 | - | `scripts/Verify-Platform.ps1 -RequireInfrastructure` passes with none skipped; `dotnet ef migrations has-pending-model-changes` prints no changes; the idempotent SQL script is in the handoff report; `scripts/shipwise.ps1 up` then sign-in, account, refresh and sign-out through the Gateway with curl give the expected statuses |
 | 2 | Codex | Shipwise-Web | `src/lib/api/**`, `src/features/auth/api/**`, `src/features/auth/schemas/**`, `src/features/auth/session/**` (session state and guard logic), `src/features/auth/index.ts`, a stub `src/features/auth/pages/sign-in-page.tsx`, `src/app/router/**`, `docs/architecture/api-integration.md` | AC-18, the routing part of AC-20 | 1 | `npm run check` passes; generated types committed and unedited |
-| 3 | Gemini | Shipwise-Web | `src/features/auth/components/**`, `src/features/auth/pages/**`, `src/app/layouts/app-layout.tsx`, `src/app/layouts/public-layout.tsx`, `tests/e2e/**` for these screens | AC-19, AC-20 (loading and redirect presentation), AC-21, AC-22, AC-23 | 2 | `npm run check` and `npm run test:e2e` pass; impeccable detect clean or triaged |
-| 4 | Claude Code | both | review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
+| 3 | Codex | Shipwise-Web | `src/features/auth/components/**`, `src/features/auth/pages/**`, `src/app/layouts/app-layout.tsx`, `src/app/layouts/public-layout.tsx`, `tests/e2e/**` for these screens | AC-19, AC-20 (loading and redirect presentation), AC-21, AC-22, AC-23 | 2 | `npm run check` and `npm run test:e2e` pass; impeccable detect clean or triaged |
+| 4 | Claude Code | both | conformance review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
 
 Task 2 owns the router and the session logic; it provides the protected-route wrapper
 and the redirect rules, and passes the loading state to a component that task 3 styles.
-From task 3 on, the sign-in page file belongs to Gemini.
+Task 3 replaces the stub sign-in page that task 2 creates.
 
 ## Assumptions and open questions
 
@@ -598,6 +598,10 @@ No open questions.
     safe default in "Non-functional requirements".
   - Affected tasks: 1, which was given this ruling before it committed; its review checks
     it. No acceptance criterion or contract changes.
+- 2026-11-26, ADR 0007 (owner's decision): task 3 moves from Gemini to Codex with the
+  same paths, criteria and "Done when" commands, and task 4 is a conformance review. The
+  design proposal named in the header stays the reference for "UI and states"; where the
+  two differ, this spec wins, as that section already says.
 
 ## Delivery record
 
