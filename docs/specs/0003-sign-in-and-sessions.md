@@ -97,9 +97,10 @@ Concerns recorded, accepted for now:
   - AC-6: Given a stored hash that `PasswordHasher` reports as needing an upgrade, when
     the user signs in successfully, then the stored hash is replaced by a fresh hash of
     the same password.
-  - AC-7: The password, both tokens, the refresh secret and the email never appear in a
-    response body, log line, trace, metric or exception message. The database stores
-    only the SHA-256 hash of the refresh secret.
+  - AC-7: The password, both tokens and the refresh secret never appear in a response
+    body. None of them, nor the email or display name, appears in a log line, trace,
+    metric or exception message. The database stores only the SHA-256 hash of the
+    refresh secret.
   - AC-8: Given a request that carries a valid refresh cookie for an active session, when
     sign-in succeeds, then that earlier session is revoked with reason `Replaced` before
     the new one is created.
@@ -300,13 +301,19 @@ Module: Identity, laid out per the cqrs-api skill, plus shared-library changes.
   7. Delete this user's expired or revoked sessions.
   8. Start the session and issue the tokens.
 - Expected failures are thrown: `UnauthorizedException` with `Auth.InvalidCredentials` or
-  `Auth.SessionExpired`, and a too-many-requests exception mapped to 429. Handlers never
-  save; the pipeline's unit of work does.
-- On refresh, a concurrency conflict on the session row (two refreshes of one token)
-  makes the handler reload the session once and take the grace path (AC-15).
-- Reuse detection must persist the revocation even though the request answers 401.
-  `RefreshSessionCommand` therefore returns a result that the controller maps to 401,
-  rather than throwing before the save. This is the one documented exception to "throw,
+  `Auth.SessionExpired`, and a too-many-requests exception mapped to 429. The
+  too-many-requests exception and its mapping live in Identity and write the same
+  `Request.TooManyRequests` envelope and `Retry-After` header as the registration rate
+  limiter. Handlers never save; the pipeline's unit of work does.
+- Refresh, sign-out, and sign-in's "revoke as `Replaced`" step load the session with a
+  row lock (`SELECT ... FOR UPDATE`, parameterized) inside the command's transaction. A
+  second refresh of the same token waits for the first to commit, then reads the rotated
+  row and takes the grace path (AC-15). The `xmin` token stays as a safety net. The
+  validator's read stays no-tracking and unlocked.
+- Reuse detection must persist the revocation even though the request answers 401. The
+  unit of work rolls back a failed `Result`, so `RefreshSessionCommand` returns a
+  successful `Result` whose value says the session ended, and the controller maps that
+  outcome to 401 and clears both cookies. This is the one documented exception to "throw,
   do not return failures", and it must be covered by a test.
 
 **Infrastructure**
@@ -578,7 +585,19 @@ No open questions.
 
 ## Change log
 
-Empty until approval.
+- 2026-11-26, approved by the owner during task 1 (Codex's decision request):
+  - AC-7: the caller's own email may appear in the sign-in, refresh and account response
+    bodies, as the contract and AC-1, AC-9 and AC-11 already said; it stays out of logs,
+    traces, metrics and exception messages.
+  - Backend design: AC-15 is met by a row lock on the session load instead of a reload
+    after a concurrency conflict, which the unit of work never shows the handler.
+  - Backend design: the reuse-detection outcome is a successful `Result`, because the
+    unit of work rolls back failed ones.
+  - Backend design: the too-many-requests exception and its 429 mapping live in Identity.
+  - No sign-in metric: the existing helpers cannot count outcomes without more work, the
+    safe default in "Non-functional requirements".
+  - Affected tasks: 1, which was given this ruling before it committed; its review checks
+    it. No acceptance criterion or contract changes.
 
 ## Delivery record
 
