@@ -1,6 +1,6 @@
 # 0003 Sign-in and sessions
 
-Status: approved · Owner: Claude Code · Related ADRs: 0005, 0001, 0002 · Design proposal: `Shipwise-Web/docs/design/proposals/0003-sign-in-and-sessions/proposal.md` (commit pending)
+Status: approved · Owner: Claude Code · Related ADRs: 0005, 0001, 0002 · Design proposal: `Shipwise-Web/docs/design/proposals/0003-sign-in-and-sessions/proposal.md` (Shipwise-Web commit c21dc60)
 
 ## Problem and outcome
 
