@@ -599,6 +599,24 @@ No open questions.
   same paths, criteria and "Done when" commands, and task 4 is a conformance review. The
   design proposal named in the header stays the reference for "UI and states"; where the
   two differ, this spec wins, as that section already says.
+- 2026-11-28, approved by the owner during task 3 (four decision requests from Codex).
+  Each adds a path to task 3 for the one change named, and none changes the contract,
+  the redirect rules, the session logic of task 2 or any design token:
+  - `src/features/auth/session/session-route.tsx` and its test: keep the workspace
+    mounted during a background refetch, so the full-page loader shows only before the
+    account first loads (the task 2 review's NOTE, AC-20).
+  - `src/app/app.tsx`: import `RouterProvider` from `react-router/dom` so sign-in and
+    sign-out navigate synchronously (`flushSync`) to `returnTo` or `/sign-in` (AC-19,
+    AC-21).
+  - `src/components/layout/navigation.test.tsx`: wrap its subject in a signed-in test
+    query provider, with no assertion weakened or removed.
+  - `src/features/auth/index.ts`: one `UserMenu` re-export, so the menu lives in
+    `src/features/auth/components` and `AppLayout` lazy-loads it through the auth entry.
+  - In `user-menu.tsx` only, the existing `bg-background` token on the menu so it is
+    opaque. `DESIGN.md`, `globals.css` and the shared dropdown are unchanged; a popover
+    token is a separate follow-up for the owner.
+  - Affected task: 3, delivered as Shipwise-Web `95b23e4` and `adb443a`, whose
+    `Deviations:` lines name these additions.
 
 ## Delivery record
 
