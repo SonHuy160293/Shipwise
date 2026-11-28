@@ -47,7 +47,8 @@ Option B.
    `Shipwise-Web/docs/design/proposals` stay as records.
 3. **Conformance review.** The reviewer reads, and runs no command. It checks that:
    - every changed path is inside the task's Paths;
-   - each covered acceptance criterion has an implementation and a test that names it;
+   - each covered acceptance criterion has an implementation and a test that clearly
+     targets it, by its name or by what it asserts;
    - the API matches the spec's contract and the committed OpenAPI document, the
      database matches the spec's database design, and the screens implement the states
      the spec lists;
