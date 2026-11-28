@@ -1,6 +1,6 @@
 # 0003 Sign-in and sessions
 
-Status: approved · Owner: Claude Code · Related ADRs: 0005, 0001, 0002 · Design proposal: `Shipwise-Web/docs/design/proposals/0003-sign-in-and-sessions/proposal.md` (Shipwise-Web commit c21dc60)
+Status: done · Owner: Claude Code · Related ADRs: 0005, 0001, 0002, 0007 · Design proposal: `Shipwise-Web/docs/design/proposals/0003-sign-in-and-sessions/proposal.md` (Shipwise-Web commit c21dc60)
 
 ## Problem and outcome
 
@@ -620,4 +620,36 @@ No open questions.
 
 ## Delivery record
 
-Empty until the spec is closed.
+Closed 2026-11-28 after the owner's integration check against the live stack passed.
+
+Commits per task (Shipwise unless marked):
+
+| Task | Commits | Review |
+|---|---|---|
+| 1 Identity sign-in, sessions and contract (Codex) | `c193f20`, `1e21e5d`, `47da935`, `8d11e38`, `f569d5d` | Conformance review: ready to push, no blocker |
+| 2 Shipwise-Web data layer and routing (Codex, Shipwise-Web) | `50e230e`, `7231f33` | Conformance review: ready to push, no blocker |
+| 3 Shipwise-Web sign-in, session and sign-out screens (Codex, Shipwise-Web) | `95b23e4`, `adb443a` | Conformance review: ready to push, no blocker |
+| 4 Final conformance review of all tasks | none (read-only) | Ready to push, no blocker |
+
+Planner commits to this spec: `f9cbc3b`, `be80ba6`, `db2dab1`, `f6aaaf7`, `75e9dca`,
+`ee3b187`, `56a9af5` (Shipwise); `31d1639`, `c21dc60`, `cb926be` (Shipwise-Web).
+
+Approved deviations (change log, 2026-11-26 and 2026-11-28):
+- Owner's rulings on task 1: the AC-7 wording, the row lock for AC-15, the reuse-detection
+  outcome as a successful `Result`, the 429 mapping in Identity, and no sign-in metric.
+- Task 3 path additions: `session-route.tsx` and its test, `src/app/app.tsx`,
+  `navigation.test.tsx`, `src/features/auth/index.ts`, and the `bg-background` token on
+  the account menu.
+- Task 3 row reassigned from Gemini to Codex (ADR 0007).
+
+Follow-ups, none blocking this spec:
+- Shared popover colour token missing from Shipwise-Web `globals.css`; a design-token
+  change, owner's decision.
+- A test that every `ApiController` action has `[PermissionAuthorize]` or
+  `[AuthenticatedUserOnly]`.
+- The session route shows the full-page loader only before the account first loads
+  (fixed in task 3); keep that behaviour in later specs.
+
+Verification: each task's "Done when" commands are recorded PASSED in its commit trailers
+and handoff report. Task 3 ran 119 unit tests and 20 Chromium end-to-end tests. Task 1
+ran 191 platform tests with PostgreSQL and RabbitMQ, none skipped.
