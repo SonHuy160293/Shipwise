@@ -17,7 +17,7 @@ Pick the lightest lane that fits. When in doubt, use the feature lane.
 |---|---|---|
 | Small change | It changes no API contract, database schema, permission rule or approved screen behavior, and stays inside one role's paths in one repository | The change with a focused test where behavior changes, one commit under the commit rule, review by a different agent |
 | Feature | Anything else | The steps below |
-| High risk | Authentication, tenancy, personal data, payments or a destructive migration | The feature lane, plus the human approves the risk explicitly in the spec, and the security tests in the spec's test plan are mandatory |
+| High risk | Authentication, tenancy, personal data, payments or a destructive migration | The feature lane, plus the human accepts the risk explicitly in the challenge brief (recorded in the spec), and the security tests in the spec's test plan are mandatory |
 
 A small change that grows past its limits stops and goes back to the planner for a spec.
 
@@ -25,17 +25,21 @@ A small change that grows past its limits stops and goes back to the planner for
 
 | # | Step | Who | Output | Gate |
 |---|---|---|---|---|
-| 1 | Challenge brief | Claude Code | Brief in chat (write-spec step 1) | **Gate 1:** the human resolves blockers and picks an approach |
-| 2 | Draft spec, including the screens in "UI and states" | Claude Code | `docs/specs/NNNN-slug.md`, status `draft` | |
-| 3 | Reconcile UI, API contract and data model in the spec | Claude Code | Updated spec | **Gate 2:** the human sets `approved` |
-| 4 | Backend, contract and frontend data layer | Codex | Local commits on `main` | **Gate 3:** the conformance review has no open blocker, then the human pushes and CI is green |
-| 5 | Frontend screens | Codex | Local commits on `main` | **Gate 3** |
-| 6 | Integration check of the frontend against the real backend | Human | Manual | |
-| 7 | Close | Claude Code | Spec status `done` with its delivery record | |
+| 1 | Challenge brief, back and forth until the human says it is final | Claude Code with the human | Brief in chat (write-spec step 1) | **Gate 1:** the human's final decision is the approval |
+| 2 | Spec, including the migration plan and the screens in "UI and states" | Claude Code | `docs/specs/NNNN-slug.md`, set to `approved` by the planner | Asks the human first if it raises a decision the brief did not settle |
+| 3 | Migration, when the spec changes the database | Codex (Sol 6.1) | Local commits in Shipwise | |
+| 4 | Contract skeleton: controllers, models, generated OpenAPI, endpoints answering 501 | Codex (Sol 6.1) | Local commits in Shipwise | |
+| 5 | In parallel: backend implementation, and the frontend data layer and screens | Codex (Sol 6.1), one worker per repository | Local commits in both repositories | |
+| 6 | Integration test against the real stack, reporting only | Codex (Astra 6) | Test commits in the paths its task names, and a report | Failures go back to the owning worker |
+| 7 | Final conformance review of the whole feature | Claude (Sonnet) | Review report | **Gate 3:** no open blocker, then the human pushes both repositories and CI is green |
+| 8 | Close | Claude Code | Spec status `done` with its delivery record | |
 
 Claude Code plans and reviews; Codex implements everything
-([ADR 0007](adr/0007-two-agent-roles-and-conformance-review.md)). There is no separate
-design proposal step: the spec's "UI and states" section is the design, at this depth.
+([ADR 0007](adr/0007-two-agent-roles-and-conformance-review.md)). One approval, a parallel
+build and one final review ([ADR 0008](adr/0008-brief-approval-parallel-build-and-final-review.md)).
+The human's own check of the running app is outside this process and does not block
+closing. There is no separate design proposal step: the spec's "UI and states" section is
+the design, at this depth.
 
 | Change | "UI and states" holds |
 |---|---|
@@ -61,11 +65,11 @@ design proposal step: the spec's "UI and states" section is the design, at this 
 
 ## Before starting a task
 
-- The spec is `approved`, and every task in your task's "Depends on" column is reviewed
-  and pushed.
-- You are on `main`, up to date with `origin/main`. Run `git status` first: if the working
-  tree has changes you did not make, stop and ask; never discard, reset, stash or
-  overwrite them.
+- The spec is `approved`, and every task in your task's "Depends on" column has reported
+  `succeeded`. Its commits are local on `main`; they need not be pushed (ADR 0008).
+- You are on `main`. Run `git status` first: if the working tree has changes you did not
+  make, stop and ask; never discard, reset, stash or overwrite them. Commits ahead of
+  `origin/main` from this feature's earlier tasks are expected.
 
 ## Commit rule
 
@@ -117,10 +121,10 @@ Verified: scripts/Verify-Platform.ps1 PASSED
   with a new commit. Never use `--no-verify`.
 - Review findings are fixed in new commits (`fix(<scope>): ...` naming the finding), not
   by rewriting the reviewed ones.
-- Do not push. After review-change reports no open blocker, the human pushes (or, outside
-  Orca, tells an agent to), using `git pull --rebase` first if `origin/main` moved. Under
-  Orca only the human pushes (see "Running a task with Orca"). If CI goes red on
-  `main`, fixing it comes before any other work.
+- Do not push. After the final review reports no open blocker, the human pushes both
+  repositories (or, outside Orca, tells an agent to), using `git pull --rebase` first if
+  `origin/main` moved. Under Orca no worker or coordinator pushes (see "Running a task
+  with Orca"). If CI goes red on `main`, fixing it comes before any other work.
 
 **Handoff report.** After committing, tell the human: the commit hashes, the task and
 criteria covered, the commands run with their results, anything not run or skipped, and
@@ -152,11 +156,14 @@ Never fix a spec or contract inconsistency silently in code and document it afte
 
 ## Review
 
-- Claude Code reviews the unpushed commits of a task with the review-change skill. It is
-  a conformance review: it checks that the commits follow the spec, the task's paths and
-  the commit rule (plus a risk checklist for high-risk tasks), labels findings `BLOCKER`
-  or `NOTE`, and runs no command. The author's "Done when" run and CI are the test gates
+- Claude (Sonnet) reviews a feature once, after its integration test passes, with the
+  review-change skill: every task's unpushed commits in both repositories (ADR 0008). It
+  is a conformance review: it checks that the commits follow the spec, each task's paths
+  and the commit rule (plus a risk checklist for high-risk tasks), labels findings
+  `BLOCKER` or `NOTE`, and runs no command. The authors' "Done when" runs, the
+  integration test and CI are the test gates
   ([ADR 0007](adr/0007-two-agent-roles-and-conformance-review.md)).
+- A small change is reviewed on its own commits by a different agent.
 - The author fixes in new commits; the reviewer rechecks; the reviewer never edits the
   code or widens the scope.
 - A change is pushed only with no open blocker.
@@ -179,7 +186,7 @@ Orca only carries the briefs, reports, questions and findings between agents.
 
 **Coordinator (Claude Code)**
 - Runs in an Orca terminal in the Shipwise repository workspace, not a folder workspace
-  above it. It creates one Run per spec, only after Gate 2, and keeps the Run ID. Only one
+  above it. It creates one Run per spec, once the spec is `approved`, and keeps the Run ID. Only one
   Run is active at a time across both checkouts. A command that targets an earlier Run
   passes `--run <run id>`, as the installed guide shows.
 - Before the first start in a Run, asks the human to confirm Agent Permissions is Manual,
@@ -191,27 +198,30 @@ Orca only carries the briefs, reports, questions and findings between agents.
   <id>` shows output and `send` steers. After starting a worker it ends its turn.
 
 **From task table to Orca tasks**
-- Tasks are created one at a time, when they can start, in the order of the spec's task
-  table. While one worker runs at a time, Orca `--deps` is not needed.
-- Each implementation row becomes one task. Its review task is created only after the
-  implementation's `worker_done` names its commits, so the review brief names an exact
-  range.
-- The spec's own review row (for example spec 0003 task 4) is covered in two parts: the
-  pre-push review of each implementation task, then, after the last implementation task
-  is pushed, one final review task with the row's whole scope: every task's commits in
-  both repositories, all the criteria the row lists, and its "Done when" checks.
-- One worker is dispatched at a time across the whole Run and both checkouts: an
-  implementation, a review or a fix follow-up. The coordinator edits no file in a
-  checkout while a worker is dispatched there.
+- Tasks are created when they can start, in the order of the spec's task table
+  (ADR 0008): the migration, then the contract skeleton, then the backend and frontend
+  tasks together, then the integration test, then the final review. A task can start
+  once every task in its "Depends on" column has reported `succeeded`; no push is needed
+  in between.
+- Each row of the task table becomes one Orca task. The final review task is created
+  after the integration test reports `succeeded`, so its brief names an exact commit
+  range in each repository.
+- At most one worker is dispatched per checkout at a time: one in Shipwise and one in
+  Shipwise-Web may run at once. An implementation, the integration test, the review and a
+  fix follow-up each count as a worker. The coordinator edits no file in a checkout while
+  a worker is dispatched there.
 
 ```
-orca orchestration run-create --environment local --objective "Spec 0003 sign-in and sessions"
-orca orchestration task-create --environment local --spec-file t1.md
-orca orchestration worker-start --environment local --task <t1 id> --worktree current --agent codex
-# after t1's worker_done names its commits:
-orca orchestration task-create --environment local --spec-file r1.md
-orca orchestration worker-start --environment local --task <r1 id> --worktree current --agent claude
-# after Gate 3 for t1: create and start t2 the same way
+orca orchestration run-create --environment local --objective "Spec NNNN <title>"
+orca orchestration task-create --environment local --spec-file t1-migration.md
+orca orchestration worker-start --environment local --task <t1> --worktree current --agent codex --model gpt-6.1-sol
+# after t1 succeeded: the contract skeleton the same way
+# after the skeleton succeeded, start both, each in its own checkout:
+orca orchestration worker-start --environment local --task <backend> --worktree current --agent codex --model gpt-6.1-sol
+orca orchestration worker-start --environment local --task <frontend> --worktree <Shipwise-Web selector> --agent codex --model gpt-6.1-sol
+# after both succeeded: the integration test, then the final review
+orca orchestration worker-start --environment local --task <integration> --worktree <its checkout> --agent codex --model gpt-6-astra
+orca orchestration worker-start --environment local --task <review> --worktree current --agent claude --model claude-sonnet-5-5 --effort low
 ```
 
 **Placement and agents**
@@ -220,11 +230,14 @@ orca orchestration worker-start --environment local --task <r1 id> --worktree cu
   primary checkout's workspace, which the human gives. If it does not resolve, stop and
   ask the human; never fall back to another workspace.
 - No worker creates a worktree or a branch.
-- Implementation tasks: `--agent codex --model gpt-6.1-sol` (Sol 6.1, the owner's choice).
-  Conformance reviews of implementation commits: `--agent claude --model claude-sonnet-5-5
-  --effort low` (ADR 0007). Planner-side work the owner hands to Codex, such as checks of
-  the planner's own documents and decision support: `--agent codex --model gpt-6-astra`
-  (Astra 6). Pass any other `--model` or `--effort` only when the human names them.
+- Implementation tasks (migration, contract skeleton, backend, frontend, fixes):
+  `--agent codex --model gpt-6.1-sol` (Sol 6.1, the owner's choice).
+- The integration test, checks of the planner's own documents and decision support:
+  `--agent codex --model gpt-6-astra` (Astra 6).
+- The final conformance review: `--agent claude --model claude-sonnet-5-5 --effort low`
+  (ADR 0007). It runs in Shipwise (`--worktree current`) and reads Shipwise-Web through
+  `../Shipwise-Web`.
+- Pass any other `--model` or `--effort` only when the human names them.
 
 **Task spec** (one file per task, passed with `--spec-file`; the first line is the title)
 
@@ -241,9 +254,12 @@ Placement: this machine (local), set up on this machine.
 
 The spec path is relative to the checkout the worker runs in:
 `docs/specs/NNNN-slug.md` in Shipwise, `../Shipwise/docs/specs/NNNN-slug.md` in
-Shipwise-Web. A review task names the implementation task and its commits, runs the
-review-change rules on them read-only, and reports the review in `worker_done`;
-`succeeded` means the review was completed, whatever the verdict.
+Shipwise-Web. The integration task names the stack command, the test paths it may write
+and the test command, changes no product code, and reports each failure with its
+evidence; `succeeded` means every integration test passed. The review task names every
+task's commit range in both repositories, runs the review-change rules on them read-only,
+and reports the review in `worker_done`; `succeeded` means the review was completed,
+whatever the verdict.
 
 **Workers (Codex, Claude as reviewer)**
 - Follow the dispatch preamble and the repository's `AGENTS.md`.
@@ -262,26 +278,26 @@ review-change rules on them read-only, and reports the review in `worker_done`;
   contradicting requirement, a conflict between spec, code, contract and design, any
   "Who decides → Human" item, and anything the coordinator is unsure about.
 
-**Review and Gate 3**
-- When an implementation task reports `succeeded`, the coordinator starts its review
-  task at once, on the local unpushed commits.
-- Findings go back to the author with `orca orchestration send --to dispatch:<author
-  dispatch id> --subject "Review findings, spec NNNN task N" --body-file <file>`. The
-  author fixes them in new commits and reports again; the coordinator then sends the
-  fix commits to the reviewer the same way for a recheck.
+**Integration test, final review and Gate 3**
+- When both implementation tasks have reported `succeeded`, the coordinator starts the
+  integration task. A failure goes to the implementation worker that owns the failing
+  side with `orca orchestration send --to dispatch:<author dispatch id> --subject
+  "Integration failure, spec NNNN" --body-file <file>`, or to the human when the owner is
+  unclear. The author fixes it in a new commit, and the integration task runs again.
+- When the integration task reports `succeeded`, the coordinator starts the final review
+  on every task's local unpushed commits in both repositories.
+- Findings go back to the owning author the same way (`--subject "Review findings, spec
+  NNNN"`). The author fixes them in new commits and reports again; the coordinator then
+  sends the fix commits to the reviewer for a recheck.
 - With a "ready to push" verdict, the coordinator reports to the human. Only the human
-  pushes under Orca; no worker or coordinator pushes, even when a message asks it to.
+  pushes, both repositories, and no worker or coordinator pushes, even when a message
+  asks it to.
 - If `git pull --rebase` before the push changes any reviewed commit, the human stops
-  before pushing and tells the coordinator. The reviewer rechecks the rebased range, and
-  the checks below use the new commit hashes.
-- The next implementation task starts only when all of these hold:
-  1. the reviewer's latest verdict is "ready to push";
-  2. the human has confirmed the push;
-  3. after `git fetch`, every reviewed commit is on `origin/main`
-     (`git merge-base --is-ancestor <sha> origin/main`);
-  4. the human has confirmed CI is green for those commits.
-
-  Orca task dependencies and decision gates never replace these checks.
+  before pushing and tells the coordinator; the reviewer rechecks the rebased range.
+- The Run is finished when the reviewer's latest verdict is "ready to push", the human
+  has pushed, every reviewed commit is on `origin/main` after `git fetch`
+  (`git merge-base --is-ancestor <sha> origin/main`), and the human has confirmed CI is
+  green. Orca task dependencies and decision gates never replace these checks.
 
 **When something fails**
 - Follow the `next` or recovery steps the command prints.
@@ -302,10 +318,11 @@ review-change rules on them read-only, and reports the review in `worker_done`;
 
 ## Closing a feature
 
-When every task is pushed and the human confirms the integration check, the planner sets
-the spec to `done` and fills its delivery record: commit hashes per task, approved
-deviations, deferred follow-ups, and any convention worth adding to `AGENTS.md` or a
-skill.
+When the final review is "ready to push", the human has pushed both repositories and CI
+is green, the planner sets the spec to `done` and fills its delivery record: commit
+hashes per task, the integration test result, approved deviations, deferred follow-ups,
+and any convention worth adding to `AGENTS.md` or a skill. The human's own check of the
+running app does not block closing.
 
 ## Source of truth
 

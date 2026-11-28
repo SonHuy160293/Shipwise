@@ -96,12 +96,12 @@ answers into the spec; anything still unanswered becomes a recorded assumption u
 default you stated. The process around the spec (lanes, gates, who decides) is in
 `docs/workflow.md`; a change that fits its small change lane needs no spec.
 
-### Screens before approval
+### Screens
 
 There is no separate design proposal (ADR 0007). When the feature adds or changes
 screens, write "UI and states" yourself at the depth the table in `docs/workflow.md`
 asks for, from `../Shipwise-Web/DESIGN.md` and the existing pages it resembles. Before
-asking for approval, check that every screen and state is listed; every field a screen
+setting the spec to `approved`, check that every screen and state is listed; every field a screen
 shows or sends exists in the API contract; every action maps to an endpoint and an
 acceptance criterion; and nothing needs a token that `DESIGN.md` lacks. A new token or a
 `DESIGN.md` change is a question for the user, never a silent choice.
@@ -109,7 +109,10 @@ acceptance criterion; and nothing needs a token that `DESIGN.md` lacks. A new to
 ## File
 
 `docs/specs/NNNN-slug.md`, numbered after the highest existing spec, with
-`Status: draft | approved | done`. Only a human sets `approved`; implementers start only
+`Status: draft | approved | done`. The user's final decision on the challenge brief is the
+approval (ADR 0008): you write the spec and set it to `approved` yourself. If writing it
+raises a decision the brief did not settle (any "Who decides → Human" row in
+`docs/workflow.md`), ask the user first and record the answer. Implementers start only
 from approved specs. Task commits carry `Spec: NNNN task N`; your own commits to the spec carry
 `Spec: NNNN (<what>)`, such as `(approved)` or `(change log)` (commit rule in
 `docs/workflow.md`).
@@ -226,10 +229,15 @@ organization can neither read nor change the data (backend tests, not only UI ch
 ## Tasks
 | # | Owner | Repo | Paths | Covers | Depends on | Done when (commands) |
 |---|-------|------|-------|--------|------------|----------------------|
-| 1 | Codex | Shipwise | src/Modules/<Name>/**, contracts/openapi/** | AC-1, AC-3 | - | scripts/Verify-Platform.ps1 passes |
-| 2 | Codex | Shipwise-Web | src/lib/api/**, src/features/<name>/api/** | AC-1 | 1 | npm run check passes |
-| 3 | Codex | Shipwise-Web | src/features/<name>/components/**, pages/** | AC-1, AC-2 | 2 | npm run check, npm run test:e2e, impeccable detect clean |
-| 4 | Claude Code | both | conformance review (review-change skill) | all | 1-3 | no open blocker, definition of done met |
+| 1 | Codex (Sol 6.1) | Shipwise | migration: src/Modules/<Name>/**/Persistence/**, tests/<Name>.Tests/** | AC-4 | - | scripts/Verify-Platform.ps1 -RequireInfrastructure passes; idempotent SQL in the report |
+| 2 | Codex (Sol 6.1) | Shipwise | contract skeleton: controllers and models answering 501, contracts/openapi/** | - | 1 | scripts/Verify-Platform.ps1 passes; contract drift test passes |
+| 3 | Codex (Sol 6.1) | Shipwise | backend: src/Modules/<Name>/** | AC-1, AC-3 | 2 | scripts/Verify-Platform.ps1 -RequireInfrastructure passes |
+| 4 | Codex (Sol 6.1) | Shipwise-Web | frontend: src/lib/api/**, src/features/<name>/** | AC-1, AC-2 | 2 (runs with 3) | npm run check, npm run test:e2e, impeccable detect clean |
+| 5 | Codex (Astra 6) | Shipwise-Web | integration test: tests/integration/<name>/** only | all | 3, 4 | scripts/shipwise.ps1 up, then the integration tests pass; failures reported, not fixed |
+| 6 | Claude (Sonnet) | both | final conformance review (review-change skill) | all | 5 | no open blocker, definition of done met |
+
+Leave out row 1 when the spec has no database change. Rows 3 and 4 run at the same time
+and share no path.
 
 ## Assumptions and open questions
 
@@ -259,16 +267,21 @@ date the human confirmed the integration check, deferred follow-ups.
 - No two tasks that can run at the same time share a path. Shared hot files
   (`Directory.Packages.props`, `Shipwise.slnx`, `package.json`/`package-lock.json`,
   `src/app/router/**`, `DESIGN.md`, `src/styles/globals.css`) belong to exactly one task.
-- Each task is one reviewable set of commits with verification commands that prove it
-  done; it is reviewed and pushed before the tasks that depend on it start.
+- Each task is one set of commits with verification commands that prove it done. A task
+  starts when the tasks it depends on have reported `succeeded`; nothing is pushed until
+  the final review (ADR 0008).
+- Order: the migration (if any), the contract skeleton, the backend and frontend in
+  parallel, the integration test, the final review. The integration row names the stack
+  command, the only paths it may write and its test command.
 - Each task lists the acceptance criteria it covers, and every criterion is covered by at
   least one task and one row of the test plan.
 - Keep slices thin: one user-visible outcome per spec. Split anything bigger.
 
 ## Finish
 
-Summarize the spec in a few lines, list the decisions taken from the challenge brief and the
-open questions, and ask the user to approve it.
+Set the spec to `approved` and commit it. Then summarize it in a few lines for the user:
+the decisions taken from the challenge brief, any question you asked while writing it and
+its answer, and the task order. Do not ask for a second approval.
 
 ## After approval
 
@@ -277,6 +290,7 @@ open questions, and ask the user to approve it.
   `docs/workflow.md`: state what was approved and the new evidence, propose the smallest
   fix with alternatives, get the user's approval, edit the spec, add a change log line and
   say which tasks must be redone. Never renumber acceptance criteria; retire or add them.
-- **Closing.** When every task's commits are pushed and the user confirms their
-  integration check, set `Status: done` and fill the delivery record. Suggest updates to
+- **Closing.** When the final review is "ready to push", the user has pushed both
+  repositories and CI is green, set `Status: done` and fill the delivery record. The
+  user's own check of the running app does not block closing. Suggest updates to
   `AGENTS.md` or a skill when the feature exposed a missing rule.

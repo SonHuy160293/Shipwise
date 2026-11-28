@@ -50,9 +50,11 @@ Two agents ([ADR 0007](docs/adr/0007-two-agent-roles-and-conformance-review.md))
   contract, the Shipwise-Web data layer, screens, layouts, styles and end-to-end tests.
   Start Codex here with `codex --add-dir ../Shipwise-Web` when a task spans both
   repositories.
-- Order within a feature: challenge brief, draft spec, the approved spec, then the
-  backend + contract task, then the frontend tasks, each checked by Claude with the
-  review-change skill before it is pushed.
+- Order within a feature ([ADR 0008](docs/adr/0008-brief-approval-parallel-build-and-final-review.md)):
+  the challenge brief, which the owner approves; the spec, which the planner writes and
+  marks approved; the migration if any; the contract skeleton; the backend and frontend
+  tasks in parallel, one worker per repository; the integration test; then one final
+  conformance review by Claude with the review-change skill before anything is pushed.
 
 ## Commit rule
 

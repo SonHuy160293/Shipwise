@@ -6,11 +6,14 @@ description: Conformance review of a Shipwise or Shipwise-Web change before it i
 # Conformance review of a Shipwise change
 
 You check that the change follows the plan, not how well it is built ([ADR 0007](../../../docs/adr/0007-two-agent-roles-and-conformance-review.md)).
-You do not run tests, builds, the app or Playwright: the author's "Done when" run and CI
-are the test gates. You do not fix anything: findings go back to the author, who fixes
-them in new commits; you recheck; the human pushes. Keep the review short.
+You do not run tests, builds, the app or Playwright: the authors' "Done when" runs, the
+integration test and CI are the test gates. You do not fix anything: findings go back to
+the owning author, who fixes them in new commits; you recheck; the human pushes. Keep the
+review short.
 
-The unit of review is the commits of one task, normally the unpushed commits on `main`.
+The unit of review for a feature is every task's unpushed commits in both repositories,
+reviewed once after the integration test passes (ADR 0008); check each commit against its
+own task row. For a small change it is that change's commits.
 
 ## 1. Gather
 
