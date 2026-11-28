@@ -220,9 +220,9 @@ orca orchestration worker-start --environment local --task <r1 id> --worktree cu
   primary checkout's workspace, which the human gives. If it does not resolve, stop and
   ask the human; never fall back to another workspace.
 - No worker creates a worktree or a branch.
-- Implementation tasks: `--agent codex`. Reviews: `--agent claude --model
-  claude-sonnet-5-5 --effort low`, the owner's standing choice (ADR 0007). Pass any other
-  `--model` or `--effort` only when the human names them.
+- Implementation tasks: `--agent codex --model gpt-6-astra`, the owner's standing choice
+  (Astra 6). Reviews: `--agent claude --model claude-sonnet-5-5 --effort low` (ADR 0007).
+  Pass any other `--model` or `--effort` only when the human names them.
 
 **Task spec** (one file per task, passed with `--spec-file`; the first line is the title)
 

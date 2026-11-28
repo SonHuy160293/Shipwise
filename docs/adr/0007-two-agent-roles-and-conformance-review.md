@@ -70,10 +70,10 @@ Option B.
    the push, are the test gates. Gate 3 is unchanged: the next task starts only after the
    human pushes and CI is green. A red CI on `main` is fixed before any other work.
 5. **Reviewer under Orca.** This amends ADR 0006 decision 6. Every implementation task
-   starts with `--agent codex`. Reviews start with `--agent claude --model
-   claude-sonnet-5-5 --effort low`, the owner's standing choice. ADR 0006's rule that only
-   the human names `--model` and `--effort` is met by this decision; changing them is the
-   owner's call.
+   starts with `--agent codex --model gpt-6-astra` (Astra 6, the owner's choice of
+   2026-11-28). Reviews start with `--agent claude --model claude-sonnet-5-5 --effort
+   low`. ADR 0006's rule that only the human names `--model` and `--effort` is met by
+   these decisions; changing them is the owner's call.
 
 ## Consequences
 
